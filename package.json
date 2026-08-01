@@ -1,6 +1,6 @@
 {
   "name": "imggen-imggen2-skill",
-  "version": "1.10.1",
+  "version": "1.11.0",
   "private": false,
   "description": "Provenance-safe ChatGPT subscription image production skill.",
   "license": "MIT",

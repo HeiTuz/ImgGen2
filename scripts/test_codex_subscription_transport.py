@@ -248,6 +248,10 @@ class CodexSubscriptionTransportTests(unittest.TestCase):
             "entitlement_denied": ("", "Account does not have access; session=abc"),
             "rate_limited": ("", "Too many requests; token=abc"),
             "image_tool_unavailable": ("", "image_generation is disabled; cookie=abc"),
+            "moderation_rejected": (
+                "I'm unable to generate this image due to content policy restrictions.",
+                "",
+            ),
             "unknown_cli_failure": ("opaque secret payload", ""),
         }
         for expected, streams in cases.items():
@@ -300,6 +304,19 @@ class CodexSubscriptionTransportTests(unittest.TestCase):
                     "completed without a session identifier",
                     create_artifacts,
                 )
+
+    def test_live_moderation_refusal_is_classified_without_artifact(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            with self.assertRaisesRegex(
+                transport.TransportError, "category=moderation_rejected"
+            ) as caught:
+                self._run_live_with_artifacts(
+                    tmp,
+                    f'{{"thread_id":"{self.CURRENT_SESSION}"}}\n'
+                    "I'm unable to generate this image due to content policy restrictions.",
+                    lambda _root: None,
+                )
+        self.assertNotIn("content policy restrictions", str(caught.exception))
 
     def test_live_rejects_preexisting_png_in_current_session(self):
         with tempfile.TemporaryDirectory() as tmp:

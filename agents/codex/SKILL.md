@@ -1,13 +1,13 @@
 ---
 name: ImgGen2
 description: "Generate and edit images through the default official Codex CLI subscription route, with provenance-safe single-image transport, resumable exact-N batches, independent QC, and an optional dynamic apparel full-set workflow. GPT/Codex host surface: the host and the generation transport coincide; the optional Grok route requires Hermes-native tooling and stays disabled on this host."
-version: 1.10.1
+version: 1.11.0
 author: HeiTuz
 license: MIT
 platforms: [linux, macos, windows]
 metadata:
   host_surface: codex
-  canonical_source: "HeiTuz/ImgGen2 SKILL.md v1.10.1"
+  canonical_source: "HeiTuz/ImgGen2 SKILL.md v1.11.0"
   tags: [image-generation, image-editing, chatgpt]
   category: creative
 ---
@@ -99,6 +99,16 @@ python scripts/codex_subscription_batch.py \
 The first cut is always a sequential transport pilot. If that job requires visual QC, bounded fan-out begins only after its independent QC passes. A simple text-only pilot with no references, product-photo correction, promotional layout, or explicit review request skips Vision QC and continues in the same pass. The batch owns an atomic ledger; resume is hash-verified against ledger-owned outputs, and failures become a fresh retry manifest. Parallel workers may only own disjoint output roots and ledgers. `--batch-dir` on the single-image helper is still one image call. Read [references/batch-production-contract.md](references/batch-production-contract.md) before batch work.
 
 For bulk ideation/reference-board requests, use `scripts/creative_batch.py`. It invokes MPW once to compile distinct prompt variations, keeps Vision QC off even for 100+ text-only ideas, stages manifests/ledgers/summaries in a hidden resumable workspace, and publishes only final PNGs. Successful runs delete the workspace; failed or interrupted runs retain it for resume. `examples/batch_100_variations.py` is the reusable cross-platform entrypoint, and the packaged presets in `examples/` (including the ecommerce set: hero, thumbnail, detail close-up, color variants, lifestyle, seasonal banner, bundle, beauty, food, home/living, apparel catalog) are thin text-only wrappers over `examples/preset_runner.py`. These presets never accept reference images and must not be presented as product-photo fidelity work.
+
+### Moderation refusals and rejected-cut recovery
+
+A moderation refusal exits the CLI cleanly with no artifact; the transport classifies it as `category=moderation_rejected` instead of a generic missing-PNG failure, and batch ledgers record that category per attempt. Recovery is prompt rework, never bypass: rewrite the rejected cut in neutral campaign/editorial language (for example, wet-look or gravure phrasing becomes a clean campaign description; lingerie becomes loungewear framing) while keeping the same subject, layout, and copy intent. Never escalate explicitness, obfuscate intent, or switch providers to route around a refusal. Rejected cuts flow into the standard retry manifest with a fresh ledger; verified successes are never regenerated.
+
+### Text rendering and gpt-image-2 output constraints
+
+Wrong or missing rendered text is fixed **inside the image**, never by post-processing: overlaying corrected text with PIL, ImageMagick, SVG, or any compositor is prohibited because the font, kerning, and tone never match the generated render. Instead, re-render only the failed cut with the copy strings quoted verbatim with role and position, noncritical copy removed, and — for dense text, comics, or fine linework — high quality at `2048x2048`.
+
+The Codex image tool accepts a fixed size set only: `1024x1024`, `1536x1024`, `1024x1536`, `1792x1024`, `1024x1792`, `2048x2048`. Map other aspect ratios to the nearest supported size (16:9 → `1792x1024`, 9:16 → `1024x1792`, 2:3 → `1024x1536`) and verify the delivered PNG's actual pixel dimensions rather than trusting the prompt token. Avoid negative "no …" phrasing — state the desired appearance positively.
 
 ### Reference-locked full-body variation series
 

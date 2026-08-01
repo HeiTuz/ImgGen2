@@ -509,6 +509,11 @@ def classify_cli_failure(stdout: str, stderr: str) -> str:
         ("entitlement_denied", r"(not entitled|entitlement|does not have access|permission denied|forbidden)"),
         ("rate_limited", r"(rate limit|too many requests|usage limit|quota exceeded)"),
         ("image_tool_unavailable", r"(image_generation|image generation|imagegen).{0,80}(unavailable|unsupported|disabled|not enabled|not found|missing)"),
+        (
+            "moderation_rejected",
+            r"(content polic(y|ies)|policy (restriction|violation)|"
+            r"(unable|can't|cannot|not able|won't be able) to (generate|create|produce|make)\b[^.\n]{0,60}\bimage)",
+        ),
     )
     for category, pattern in rules:
         if re.search(pattern, text):
@@ -583,6 +588,14 @@ def run(
     session_ids = session_ids_in_cli(cli_output)
     generated = select_fresh_session_png(cli_output, before)
     if generated is None:
+        # A moderation refusal exits 0 with no artifact; distinguish it so batch
+        # ledgers and retry manifests can target rejected cuts for prompt rework.
+        if classify_cli_failure(completed.stdout, completed.stderr) == "moderation_rejected":
+            raise TransportError(
+                "Codex declined the request; category=moderation_rejected; no artifact was "
+                "produced. Rework this prompt with neutral campaign/editorial language and "
+                "retry only this job; never escalate explicitness to bypass moderation."
+            )
         session_reason = (
             "no session/thread ID was reported"
             if not session_ids

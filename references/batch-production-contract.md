@@ -119,6 +119,13 @@ Parallel workers are useful above the runner rather than as an excuse to omit ba
 
 For ordinary batches, one authoritative runner already performs bounded parallel Codex calls and is simpler than assigning every image to a worker. Use additional workers when manifest compilation or independent visual QC is the bottleneck, or when very large batches are partitioned into explicitly disjoint shards.
 
+## Runtime hygiene
+
+- **Moderation-rejected cuts** land in the ledger as `failure_category: moderation_rejected` and flow into the standard retry manifest. Before retrying, rework each rejected prompt into neutral campaign/editorial language with the same subject, layout, and copy intent — never escalate explicitness or switch providers to route around a refusal.
+- **Disk preflight**: `~/.codex/generated_images/` accumulates session PNGs that were never recovered (refusals, interrupted runs). Verify at least 2 GB free before a large batch and periodically clean session folders whose artifacts are already ledger-verified at their destinations.
+- **Long runs** belong in the background with progress read from the ledger/summary files, not from a foreground terminal.
+- **Stray worker cleanup**: after aborting a batch, terminate leftover CLI workers with a process-qualified pattern such as `pkill -9 -f "codex exec"`. Never `pkill -f <runner-script-name>` from an interactive shell — the pattern matches the invoking shell's own command line and kills it.
+
 ## Non-negotiable invariants
 
 - no API key/private endpoint/browser/cookie/provider fallback;
