@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://schemas.heituz.dev/mpw/apparel-handoff/v1",
+  "$id": "https://raw.githubusercontent.com/HeiTuz/MPW/main/contracts/v1/apparel-handoff.schema.json",
   "title": "Portable apparel generation handoff v1",
   "type": "object",
   "additionalProperties": false,
@@ -18,23 +18,23 @@
   ],
   "properties": {
     "schema_version": {"const": 1},
-    "folder_id": {"type": "string", "minLength": 1, "pattern": "^[^/\\\\]+$"},
+    "folder_id": {"type": "string", "minLength": 1, "pattern": "^(?!\\.{1,2}$)[^/\\\\]+$"},
     "source_folder": {"type": "string", "minLength": 1},
     "sources": {
       "type": "array",
       "minItems": 1,
       "uniqueItems": true,
-      "items": {"type": "string", "minLength": 1, "pattern": "^[^/\\\\]+$"}
+      "items": {"type": "string", "minLength": 1, "pattern": "^(?!\\.{1,2}$)[^/\\\\]+$"}
     },
     "vision_role_map": {
       "type": "array",
       "minItems": 1,
       "items": {
         "type": "object",
-        "additionalProperties": true,
+        "additionalProperties": false,
         "required": ["file", "role"],
         "properties": {
-          "file": {"type": "string", "minLength": 1, "pattern": "^[^/\\\\]+$"},
+          "file": {"type": "string", "minLength": 1, "pattern": "^(?!\\.{1,2}$)[^/\\\\]+$"},
           "role": {"type": "string", "minLength": 1},
           "color_identity": {"type": "string", "minLength": 1}
         },
@@ -59,7 +59,7 @@
         "additionalProperties": false,
         "required": ["id", "filename", "prompt"],
         "properties": {
-          "id": {"type": "string", "minLength": 1, "pattern": "^[^/\\\\]+$"},
+          "id": {"type": "string", "minLength": 1, "pattern": "^(?!\\.{1,2}$)[^/\\\\]+$"},
           "filename": {"type": "string", "pattern": "^[^/\\\\]+\\.png$"},
           "prompt": {"type": "string", "minLength": 1, "maxLength": 2000, "pattern": "^IMAGE\\b"}
         }

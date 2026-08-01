@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://github.com/HeiTuz/MPW/blob/main/contracts/v1/image-production-handoff.schema.json",
+  "$id": "https://raw.githubusercontent.com/HeiTuz/MPW/main/contracts/v1/image-production-handoff.schema.json",
   "title": "HeiTuz portable image-production handoff",
   "type": "object",
   "additionalProperties": false,
@@ -49,6 +49,7 @@
     "input_images": {
       "type": "array",
       "maxItems": 20,
+      "uniqueItems": true,
       "items": {
         "type": "object",
         "additionalProperties": false,
