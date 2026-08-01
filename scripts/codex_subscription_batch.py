@@ -6,7 +6,7 @@ approval digests stay in provenance to detect resume/config drift, and no
 approval marker or environment ceremony is required. This module never inspects
 images; QC input must come from an independent human or vision review, and that
 review is execution-time safety validation — final visual QC, comparison, and
-selection authority belongs to Renderline.
+selection authority belongs to the active review workflow.
 """
 from __future__ import annotations
 

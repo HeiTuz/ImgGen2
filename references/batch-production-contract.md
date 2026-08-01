@@ -72,7 +72,7 @@ One pass makes one attempt per pending job. It never loops retries inside the ap
 
 ## QC reconciliation and selective retry
 
-This reconciliation is an execution-time safety gate for pilot admission, fan-out, and failed-cut-only retries. It is not final acceptance: final visual QC, comparison, and selection authority for delivered work belongs to Renderline.
+This reconciliation is an execution-time safety gate for pilot admission, fan-out, and failed-cut-only retries. It is not final acceptance: final visual QC, comparison, and selection for delivered work belongs to the active review workflow.
 
 The helper does not inspect pixels. Independent human/Vision review supplies QC JSONL keyed by `id`:
 

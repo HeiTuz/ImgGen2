@@ -1,6 +1,6 @@
 ---
 name: ImgGen2
-description: "Generate and materialize direct/native image and video outputs: Codex by default, plus explicitly selected xAI or Alibaba Wan/HappyHorse lanes. Renderline owns final visual QC, comparison, and selection; this skill emits artifacts for that handoff."
+description: "Generate and materialize direct/native image and video outputs: Codex by default, plus explicitly selected xAI or Alibaba Wan/HappyHorse lanes. This skill emits artifacts for downstream review without claiming final acceptance."
 version: 1.11.0
 author: HeiTuz
 license: MIT
@@ -13,7 +13,7 @@ metadata:
 
 # ImgGen2
 
-Generate and materialize direct/native media. Codex remains the default ordinary image route. Explicit `Grok`/`xAI` requests use the existing OAuth-gated native lane; explicit `Wan`/`Alibaba` requests use a configured Hermes-native Alibaba adapter (Wan for images, HappyHorse for video). Higgsfield and Midjourney belong to Renderline, not this skill. ImgGen2 proves transport and emits artifacts; Renderline owns final visual QC, comparison, selection, and repair decisions. MPW may help write prompts, but is never a required pipeline gate.
+Generate and materialize direct/native media. Codex remains the default ordinary image route. Explicit `Grok`/`xAI` requests use the existing OAuth-gated native lane. Explicit `Wan`/`Alibaba` image requests execute through ImgGen2's `scripts/alibaba_token_plan_transport.py`, which calls the installed Alibaba provider directly, writes ImgGen2 provenance, and leaves Hermes-native `image_gen.provider` untouched. Higgsfield and Midjourney use their own provider-specific skills, not this skill. ImgGen2 proves transport and emits artifacts; final acceptance is handled by the active QC workflow outside this execution skill. MPW may help write prompts, but is never a required pipeline gate.
 
 ## Capabilities
 
@@ -24,7 +24,7 @@ Generate and materialize direct/native media. Codex remains the default ordinary
 - risk-based post-generation QC through the host's default Vision tool in `auto` mode for reference/edit/product/promo work, with simple text-only generation skipping the visual loop;
 - optional apparel full-set preparation: colors stay product metadata while `candidate_attempt_count` independently defaults to three complete candidate attempts, followed by default mixed per-cut selection across attempts at a minimum 80% family-similarity gate; an explicit `selection_mode: whole-set` keeps one coherent candidate set.
 
-Never use private endpoints, DOM automation, cookie extraction, silent provider fallback, or a model claim not supported by returned evidence. **API-key billing is prohibited except for an explicit, user-approved Alibaba Token Plan quota/billing lane.** Reuse only the credential already owned by the configured Hermes provider; never print, copy, move, or create a key. An `XAI_API_KEY` alone never enables the HeiTuz Grok route. ImgGen2 verifies transport and materialization; Renderline owns final visual QC and selection. Never turn a requested label into an attestation: `observed_model` and `model_identity_attested` stay unset unless supported evidence exists. For delivery, use a supported file attachment; printing the path is not delivery evidence.
+Never use private endpoints, DOM automation, cookie extraction, silent provider fallback, or a model claim not supported by returned evidence. **API-key billing is prohibited except for an explicit, user-approved Alibaba Token Plan quota/billing lane.** Reuse only the credential already owned by the configured Hermes provider; never print, copy, move, or create a key. An `XAI_API_KEY` alone never enables the HeiTuz Grok route. ImgGen2 verifies transport and materialization; final visual QC and selection belong to the active review workflow. Never turn a requested label into an attestation: `observed_model` and `model_identity_attested` stay unset unless supported evidence exists. For delivery, use a supported file attachment; printing the path is not delivery evidence.
 Never fall back to a different generation provider when the selected route fails.
 
 ## Boundaries
@@ -125,7 +125,7 @@ When the request contains one or more product references and asks for multiple p
 
 `auto` is risk-based, not always-on. Invoke the host's default Vision analysis tool when at least one reference/input image exists, the request edits or corrects an existing image, the work is a product-photo correction or product set, the layout is promotional, or the user explicitly asks for review/comparison. On Hermes this uses `vision_analyze`, which follows the live `auxiliary.vision` configuration instead of pinning a reviewer inside ImgGen2. The full original remains the delivery artifact and is never modified.
 
-This lane is execution-time safety validation, not final acceptance: it exists to catch transport, fidelity, and regression defects before fan-out or delivery. Renderline retains final visual QC, comparison, and selection authority for all engines, including artifacts generated here.
+This lane is execution-time safety validation, not final acceptance: it exists to catch transport, fidelity, and regression defects before fan-out or delivery. Final visual QC, comparison, and selection happen in the active review workflow for the project.
 
 For a text-only creation with no reference, edit, product-photo correction, promotional layout, or explicit QC request, skip Vision analysis and regeneration. Still verify the output locally: expected file exists, is non-empty, has the expected image format, and does not overwrite another artifact. Mark this path as `qc_status: skipped` with reason `simple_text_only`.
 
@@ -139,11 +139,13 @@ When QC is required, review the image against the requested brief, source fideli
 | --- | --- |
 | Ordinary single image or exact-N image batch | Codex subscription default |
 | Explicit `Grok` / `그록` / `xAI` image request with `xai-oauth` and native tool available | Grok OAuth; no API-key-only fallback |
-| Explicit `Wan` / `Alibaba` image request | Configured Hermes-native Alibaba adapter; `wan2.7-image` default or explicit `wan2.7-image-pro` |
+| Explicit `Wan` / `Alibaba` image request | `scripts/alibaba_token_plan_transport.py`; `wan2.7-image` default or explicit `wan2.7-image-pro` |
 | Explicit `HappyHorse` / `Alibaba` video request | Configured Hermes-native Alibaba adapter; explicit `happyhorse-1.1-t2v`, `happyhorse-1.1-i2v`, or `happyhorse-1.1-r2v` |
-| Explicit Higgsfield or Midjourney request | Renderline; never emulate or replace it here |
+| Explicit Higgsfield or Midjourney request | Use the provider-specific skill; never emulate or replace it here |
 
-For an Alibaba lane, prove the installed provider is registered before a paid call; make that one selected route active only for the call/run, then restore the prior default provider exactly. Do not permanently change `image_gen.provider` or `video_gen.provider` without explicit direction. Local source paths are rejected for Wan/HappyHorse whenever the native Bailian endpoint accepts only public HTTP(S) references; never fabricate a URL or upload through an unverified side channel. Return the provider-materialized Hermes cache file and hand it to Renderline whenever QC, comparison, or selection is required.
+For a Wan image lane, prove the installed provider is available, then run `python scripts/alibaba_token_plan_transport.py --prompt "..." --reference-url "https://..." --execute`. The script calls the registered provider implementation directly and writes `$HERMES_HOME/artifacts/imggen2/<run-id>/provenance.json`; it must never change `image_gen.provider`, which remains reserved for the Hermes-native xAI lane. Local source paths are rejected whenever Bailian accepts only public HTTP(S) references; never fabricate a URL or upload through an unverified side channel. Return the provider-materialized cache file and hand its path plus provenance to the active review workflow whenever QC, comparison, or selection is required.
+
+QC repair is always **prompt revision plus fresh generation from the immutable original reference**. Never pass a generated candidate as `image_url` or use it as the next run's reference. Provenance must retain `input_role: identity_reference` and `regeneration_parent_artifact_id: null`; otherwise the candidate is an edit chain and is invalid for QC acceptance.
 
 ### Provider routing quick reference
 

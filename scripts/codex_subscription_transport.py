@@ -194,7 +194,7 @@ def evaluate_qc(
     """Evaluate supplied local or human QC scores without inspecting an image.
 
     Execution-time safety validation only; final visual QC, comparison, and
-    selection authority belongs to Renderline.
+    selection authority belongs to the active review workflow.
 
     The canonical average uses only the four required axes. text_accuracy, when
     rendered, and optional identity_consistency, when supplied, must meet the floor.
@@ -291,7 +291,7 @@ def plan_qc_regeneration(
     """Plan one-output regeneration from a QC report without touching the file.
 
     Execution-time recovery planning only; final acceptance authority stays
-    with Renderline.
+    with the active review workflow.
     """
     if not isinstance(promotional, bool):
         raise ValueError("promotional must be a boolean.")

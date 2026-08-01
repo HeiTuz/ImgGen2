@@ -3,7 +3,7 @@
 ## Supported route
 
 The only authorized route is the official Codex CLI using an existing ChatGPT subscription session and its built-in `image_generation` tool. The helper does not force an agent or image model; Codex selects the supported image route. Reasoning effort remains `medium`.
-`MPW` may compile image prompts when installed, but it is optional and never a required pipeline gate: direct prompt invocation is fully supported. When a compiled handoff is used, it is exactly the final compiled `IMAGE` prompt, never the rough request or prompt fragments. ImgGen2 owns transport, session-scoped artifact recovery, and execution-time safety validation; final visual QC, comparison, and selection authority for every engine belongs to Renderline.
+`MPW` may compile image prompts when installed, but it is optional and never a required pipeline gate: direct prompt invocation is fully supported. When a compiled handoff is used, it is exactly the final compiled `IMAGE` prompt, never the rough request or prompt fragments. ImgGen2 owns transport, session-scoped artifact recovery, and execution-time safety validation; final visual QC, comparison, and selection belong to the active review workflow for the project.
 
 No image-generation path in this skill may read authentication files, extract cookies, automate a web page, call a private endpoint, or use an API key. Risk-based post-generation QC is delegated to the host's default Vision tool for reference/edit/product/promo work; simple text-only generation skips the visual loop. The installed `vision-qc.json` contains only version, mode, and reviewer-routing metadata; credentials or provider-specific model names are forbidden. `auto` follows the live host Vision configuration and `off` disables visual review while preserving local artifact validation.
 
@@ -55,7 +55,7 @@ Dry-run JSON reports `transport_state: "dry_run"` and `qc_status: "not_evaluated
 
 The pure, network-free QC helpers consume local or human observations on four 0–5 axes: `goal_fit`, `text_accuracy`, `material_realism`, and `layout`. QC passes if and only if the average is at least 4 and, when rendered text exists, `text_accuracy` is at least 4. They report failed axes and deltas only for those axes, then plan regeneration of the one affected output. Promotional outputs must set the promotional branch and provide promo QC; omission is an error. Promo QC checks physical type/subject interaction, generic-card regression, printed-not-literal meta-UI, a two-to-three-color lock, one-to-three finishing devices, and Korean glyph/mask safety.
 
-The QC helpers above are execution-time safety validation gates (pilot health, fan-out admission, selective-retry hygiene), not final acceptance. Final visual QC, comparison, and selection authority stays with Renderline for all engines.
+The QC helpers above are execution-time safety validation gates (pilot health, fan-out admission, selective-retry hygiene), not final acceptance. Final visual QC, comparison, and selection are handled by the active review workflow for each engine.
 
 For text recovery, tighten role, position, and copy precision first; use a larger canvas only when the current transport actually supports it; then reduce noncritical copy and regenerate only the failed cut. The current helper has no size flag or size-capability probe and does not fake one.
 
