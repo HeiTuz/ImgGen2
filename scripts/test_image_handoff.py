@@ -101,6 +101,73 @@ class ImageHandoffTests(unittest.TestCase):
             self.assertEqual(result["job_id"], value["job_id"])
             self.assertEqual(result["transport"], {"live": False})
 
+    @staticmethod
+    def _write_png(path: Path, width: int, height: int) -> None:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_bytes(
+            handoff.PNG_SIGNATURE
+            + (13).to_bytes(4, "big")
+            + b"IHDR"
+            + width.to_bytes(4, "big")
+            + height.to_bytes(4, "big")
+        )
+
+    def test_dimension_check_passes_matching_delivery(self):
+        with tempfile.TemporaryDirectory() as temp:
+            png = Path(temp) / "cup.png"
+            self._write_png(png, 1086, 1448)
+            check = handoff.dimension_check({"aspect_ratio": "3:4"}, png)
+            self.assertEqual(check, {"actual": "1086x1448", "matched": True, "requested_aspect_ratio": "3:4"})
+            self._write_png(png, 1024, 1024)
+            self.assertTrue(handoff.dimension_check({"image_size": "1024x1024"}, png)["matched"])
+
+    def test_dimension_check_flags_silent_remap(self):
+        with tempfile.TemporaryDirectory() as temp:
+            png = Path(temp) / "cup.png"
+            self._write_png(png, 1024, 1536)
+            self.assertFalse(handoff.dimension_check({"aspect_ratio": "3:4"}, png)["matched"])
+            self.assertFalse(handoff.dimension_check({"image_size": "1024x1024"}, png)["matched"])
+
+    def test_dimension_check_absent_when_nothing_requested(self):
+        with tempfile.TemporaryDirectory() as temp:
+            png = Path(temp) / "cup.png"
+            self._write_png(png, 1024, 1536)
+            self.assertIsNone(handoff.dimension_check({}, png))
+
+    def test_execute_fails_closed_on_dimension_drift_unless_accepted(self):
+        value = self.valid()
+        value["operation"] = "generate"
+        value.pop("input_images")
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            source = root / "handoff.json"
+            source.write_text(json.dumps(value), encoding="utf-8")
+
+            def fake_run(prompt, out, images, execute):
+                self._write_png(out, 1024, 1536)
+                return {"live": True}
+
+            with patch.object(handoff.transport, "run", side_effect=fake_run):
+                with self.assertRaisesRegex(handoff.HandoffError, "artifact retained"):
+                    handoff.consume_handoff(source, root / "results", execute=True)
+                result = handoff.consume_handoff(
+                    source, root / "results", execute=True, accept_dimension_drift=True
+                )
+            self.assertFalse(result["dimension_check"]["matched"])
+            self.assertEqual(result["dimension_check"]["actual"], "1024x1536")
+
+    def test_dry_run_skips_dimension_check(self):
+        value = self.valid()
+        value["operation"] = "generate"
+        value.pop("input_images")
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            source = root / "handoff.json"
+            source.write_text(json.dumps(value), encoding="utf-8")
+            with patch.object(handoff.transport, "run", return_value={"live": False}):
+                result = handoff.consume_handoff(source, root / "results")
+            self.assertNotIn("dimension_check", result)
+
     def test_installed_schema_matches_shared_contract_shape(self):
         schema = json.loads(
             Path(__file__).resolve().parents[1]

@@ -643,5 +643,21 @@ class CodexSubscriptionTransportTests(unittest.TestCase):
             )
 
 
+class CliTimeoutOverrideTests(unittest.TestCase):
+    def test_env_override_accepts_positive_integer(self):
+        with patch.dict(os.environ, {"IMGGEN2_CLI_TIMEOUT_SECONDS": "1800"}):
+            self.assertEqual(transport.cli_timeout_seconds(), 1800)
+
+    def test_env_override_rejects_invalid_and_nonpositive_values(self):
+        for bad in ("abc", "", "-5", "0"):
+            with patch.dict(os.environ, {"IMGGEN2_CLI_TIMEOUT_SECONDS": bad}):
+                self.assertEqual(transport.cli_timeout_seconds(), transport.CLI_TIMEOUT_SECONDS)
+
+    def test_default_without_env(self):
+        env = {k: v for k, v in os.environ.items() if k != "IMGGEN2_CLI_TIMEOUT_SECONDS"}
+        with patch.dict(os.environ, env, clear=True):
+            self.assertEqual(transport.cli_timeout_seconds(), transport.CLI_TIMEOUT_SECONDS)
+
+
 if __name__ == "__main__":
     unittest.main()

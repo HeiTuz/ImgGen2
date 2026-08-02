@@ -26,6 +26,16 @@ DOWNLOADS_DIR = Path.home() / "Downloads"
 REASONING_EFFORT = "medium"
 
 CLI_TIMEOUT_SECONDS = 900
+
+
+def cli_timeout_seconds() -> int:
+    """Effective CLI timeout: IMGGEN2_CLI_TIMEOUT_SECONDS overrides the default when it is a positive integer."""
+    raw = os.environ.get("IMGGEN2_CLI_TIMEOUT_SECONDS", "")
+    try:
+        value = int(raw)
+    except ValueError:
+        return CLI_TIMEOUT_SECONDS
+    return value if value > 0 else CLI_TIMEOUT_SECONDS
 _SESSION_ID_RE = re.compile(
     r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}",
     re.IGNORECASE,
@@ -564,19 +574,20 @@ def run(
         return summary
     # The caller's explicit image-generation request authorizes this bounded invocation.
     before = generated_pngs()
+    timeout_seconds = cli_timeout_seconds()
     try:
         completed = subprocess.run(
             command,
             cwd=output.parent,
             text=True,
             capture_output=True,
-            timeout=CLI_TIMEOUT_SECONDS,
+            timeout=timeout_seconds,
             check=False,
             env=os.environ.copy(),
         )
     except subprocess.TimeoutExpired:
         raise TransportError(
-            f"Codex CLI timed out after {CLI_TIMEOUT_SECONDS}s; no output retained."
+            f"Codex CLI timed out after {timeout_seconds}s; no output retained."
         ) from None
     cli_output = f"{completed.stdout}\n{completed.stderr}"
     if completed.returncode != 0:

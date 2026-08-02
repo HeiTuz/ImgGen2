@@ -1,13 +1,13 @@
 ---
 name: ImgGen2
 description: "Generate and edit images through the default official Codex CLI subscription route, with provenance-safe single-image transport, resumable exact-N batches, independent QC, and an optional dynamic apparel full-set workflow. GPT/Codex host surface: the host and the generation transport coincide; the optional Grok route requires Hermes-native tooling and stays disabled on this host."
-version: 1.11.0
+version: 1.12.0
 author: HeiTuz
 license: MIT
 platforms: [linux, macos, windows]
 metadata:
   host_surface: codex
-  canonical_source: "HeiTuz/ImgGen2 SKILL.md v1.11.0"
+  canonical_source: "HeiTuz/ImgGen2 SKILL.md v1.12.0"
   tags: [image-generation, image-editing, chatgpt]
   category: creative
 ---

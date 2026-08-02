@@ -1,7 +1,7 @@
 ---
 name: ImgGen2
 description: "Generate and materialize direct/native image and video outputs: Codex by default, plus explicitly selected xAI or Alibaba Wan/HappyHorse lanes. This skill emits artifacts for downstream review without claiming final acceptance."
-version: 1.11.0
+version: 1.12.0
 author: HeiTuz
 license: MIT
 platforms: [linux, macos, windows]

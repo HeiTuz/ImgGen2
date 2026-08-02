@@ -18,6 +18,8 @@ SCHEMA_VERSION = "image-production-handoff/v2"
 JOB_ID_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$")
 RATIO_RE = re.compile(r"^[1-9][0-9]*:[1-9][0-9]*$")
 SIZE_RE = re.compile(r"^[1-9][0-9]{2,4}x[1-9][0-9]{2,4}$")
+PNG_SIGNATURE = b"\x89PNG\r\n\x1a\n"
+ASPECT_TOLERANCE = 0.02
 TOP_LEVEL_FIELDS = {
     "schema_version", "job_id", "operation", "prompt", "negative_prompt",
     "aspect_ratio", "image_size", "input_images", "output", "metadata",
@@ -133,7 +135,54 @@ def _transport_prompt(handoff: dict[str, Any]) -> str:
     return handoff["prompt"] + "\n\n" + "\n".join(constraints)
 
 
-def consume_handoff(handoff_path: Path, output_root: Path, execute: bool = False) -> dict[str, Any]:
+def _png_dimensions(path: Path) -> tuple[int, int]:
+    """Read width/height from the PNG IHDR header without decoding the image."""
+    try:
+        with path.open("rb") as handle:
+            header = handle.read(24)
+    except OSError as exc:
+        raise HandoffError(f"delivered artifact could not be read: {path.name}") from exc
+    if len(header) < 24 or not header.startswith(PNG_SIGNATURE) or header[12:16] != b"IHDR":
+        raise HandoffError(f"delivered artifact is not a readable PNG: {path.name}")
+    width = int.from_bytes(header[16:20], "big")
+    height = int.from_bytes(header[20:24], "big")
+    if width <= 0 or height <= 0:
+        raise HandoffError(f"delivered PNG reports non-positive dimensions: {path.name}")
+    return width, height
+
+
+def dimension_check(handoff: dict[str, Any], output: Path) -> dict[str, Any] | None:
+    """Verify delivered PNG dimensions against the requested aspect_ratio/image_size.
+
+    A requested aspect ratio is never claimed from the prompt token alone — the
+    delivered pixels are the evidence. Returns None when the handoff requested
+    neither field.
+    """
+    requested_ratio = handoff.get("aspect_ratio")
+    requested_size = handoff.get("image_size")
+    if not requested_ratio and not requested_size:
+        return None
+    width, height = _png_dimensions(output)
+    check: dict[str, Any] = {"actual": f"{width}x{height}", "matched": True}
+    if requested_size:
+        check["requested_image_size"] = requested_size
+        if requested_size != f"{width}x{height}":
+            check["matched"] = False
+    if requested_ratio:
+        check["requested_aspect_ratio"] = requested_ratio
+        ratio_w, ratio_h = (int(part) for part in requested_ratio.split(":"))
+        expected = ratio_w / ratio_h
+        if abs((width / height) - expected) > ASPECT_TOLERANCE * expected:
+            check["matched"] = False
+    return check
+
+
+def consume_handoff(
+    handoff_path: Path,
+    output_root: Path,
+    execute: bool = False,
+    accept_dimension_drift: bool = False,
+) -> dict[str, Any]:
     try:
         handoff = validate_handoff(json.loads(handoff_path.read_text(encoding="utf-8")))
     except (OSError, json.JSONDecodeError) as exc:
@@ -152,12 +201,27 @@ def consume_handoff(handoff_path: Path, output_root: Path, execute: bool = False
     if output != root and root not in output.parents:
         raise HandoffError("output.filename escapes output root")
     summary = transport.run(_transport_prompt(handoff), output, image_paths, execute)
-    return {
+    result = {
         "schema_version": handoff["schema_version"],
         "job_id": handoff["job_id"],
         "compiler_metadata": handoff.get("metadata", {}),
         "transport": summary,
     }
+    if execute:
+        check = dimension_check(handoff, output)
+        if check is not None:
+            result["dimension_check"] = check
+            if not check["matched"] and not accept_dimension_drift:
+                # The handoff contract forbids silently changing a requested behavior:
+                # a dimension miss fails closed, with the artifact retained for inspection.
+                raise HandoffError(
+                    "delivered dimensions "
+                    f"{check['actual']} do not satisfy the requested "
+                    f"{'/'.join(filter(None, [handoff.get('aspect_ratio'), handoff.get('image_size')]))}; "
+                    f"artifact retained at {output} — regenerate, or rerun with "
+                    "--accept-dimension-drift to accept the deviation explicitly"
+                )
+    return result
 
 
 def main(argv: Sequence[str] | None = None) -> int:
@@ -165,9 +229,17 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser.add_argument("handoff", type=Path)
     parser.add_argument("--output-root", type=Path, default=Path.cwd())
     parser.add_argument("--execute", action="store_true")
+    parser.add_argument(
+        "--accept-dimension-drift",
+        action="store_true",
+        help="Record a requested-vs-delivered dimension mismatch in the result instead of failing closed.",
+    )
     args = parser.parse_args(argv)
     try:
-        print(json.dumps(consume_handoff(args.handoff, args.output_root, args.execute), indent=2))
+        print(json.dumps(
+            consume_handoff(args.handoff, args.output_root, args.execute, args.accept_dimension_drift),
+            indent=2,
+        ))
     except (HandoffError, transport.TransportError) as exc:
         print(json.dumps({"error": str(exc)}), file=sys.stderr)
         return 2

@@ -57,6 +57,12 @@ The pure, network-free QC helpers consume local or human observations on four 0�
 
 The QC helpers above are execution-time safety validation gates (pilot health, fan-out admission, selective-retry hygiene), not final acceptance. Final visual QC, comparison, and selection are handled by the active review workflow for each engine.
 
+## Dimension verification
+
+A requested `aspect_ratio` or `image_size` in a handoff is a behavior the executor must honor or reject — never silently remap. The handoff consumer verifies the delivered PNG's IHDR dimensions after every executed transport: `image_size` requires an exact width-by-height match, and `aspect_ratio` allows a 2% ratio tolerance (the transport does not guarantee exact pixel grids for every ratio). A mismatch fails closed with the artifact retained on disk and named in the error, so the caller can regenerate or explicitly accept the deviation by rerunning with `--accept-dimension-drift`, which records `dimension_check.matched: false` in the result instead. The check is skipped in dry-run (no artifact) and when the handoff requested neither field. Observed motivation: the same 3:4 request has been delivered as both a true 3:4 grid and a silently remapped native 1024x1536 (2:3) across rolls — the prompt token alone proves nothing.
+
+The Codex CLI transport timeout defaults to 900 seconds and may be raised for congested periods via the `IMGGEN2_CLI_TIMEOUT_SECONDS` environment variable (positive integers only; invalid values fall back to the default). Observed transport latency varies from about 3 to more than 15 minutes for a single image under load.
+
 For text recovery, tighten role, position, and copy precision first; use a larger canvas only when the current transport actually supports it; then reduce noncritical copy and regenerate only the failed cut. The current helper has no size flag or size-capability probe and does not fake one.
 
 ## Output and delivery
