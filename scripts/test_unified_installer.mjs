@@ -78,7 +78,7 @@ try {
       imggen2_target: "C:\\Users\\alice\\AppData\\Local\\Temp\\_npx\\123\\package",
       mpw_target: "C:\\Users\\alice\\.hermes\\skills\\prompt-writing\\MPW",
     }, { home: "C:\\Users\\alice", windows: true, env: { TEMP: "C:\\Users\\alice\\AppData\\Local\\Temp" } }),
-    /transient.*Repair with: npx --yes --package github:HeiTuz\/ImgGen2 imggen-imggen2/iu,
+    /transient.*Repair with: npx --yes --allow-git=all --package github:HeiTuz\/ImgGen2 imggen-imggen2/iu,
   );
   const plan = invoke(["scripts/install.mjs", "--dry-run"], { HEITUZ_TEST_PLATFORM: "win32", LOCALAPPDATA: path.join(temp, "local"), APPDATA: path.join(temp, "roaming") });
   assert.match(plan, /powershell\.exe/);

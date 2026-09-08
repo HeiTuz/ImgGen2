@@ -64,7 +64,7 @@ fs.writeFileSync(path.join(dest,'SKILL.md'),'---\\nname: mpw\\n---\\n');
       assert.equal(fs.existsSync(path.join(home, ".config/imggen/installation.json")), false);
       if (component !== "imggen2") {
         const call = JSON.parse(fs.readFileSync(calls, "utf8").trim());
-        assert.deepEqual(call.slice(0, 5), ["--yes", "--package", "github:HeiTuz/MPW", "heituzmpw", "--"]);
+        assert.deepEqual(call.slice(0, 6), ["--yes", "--allow-git=all", "--package", "github:HeiTuz/MPW", "heituzmpw", "--"]);
         assert.equal(call.includes("--force"), false);
         const health = installationHealth({ components: ["mpw"], imggen2_target: images, mpw_target: prompts });
         assert.equal(health.healthy, true, health.problems.join(", "));

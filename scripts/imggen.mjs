@@ -8,7 +8,7 @@ import { spawnSync } from "node:child_process";
 const IMGGEN_REPO = "github:HeiTuz/ImgGen2";
 const MPW_REPO = "github:HeiTuz/MPW";
 
-const REPAIR_COMMAND = "npx --yes --package github:HeiTuz/ImgGen2 imggen-imggen2 -- --component imggen2 --force --register";
+const REPAIR_COMMAND = "npx --yes --allow-git=all --package github:HeiTuz/ImgGen2 imggen-imggen2 -- --component imggen2 --force --register";
 export function selectedComponents(installation, requested = null) {
   if (requested !== null && !["imggen2", "mpw", "all"].includes(requested)) throw new Error("--component must be imggen2, mpw, or all");
   const values = requested !== null ? (requested === "all" ? ["imggen2", "mpw"] : [requested]) : (installation.components || ["imggen2"]);
@@ -244,7 +244,7 @@ Commands:
 }
 
 export function imggenUpdateArgs(manifest, { interactive }) {
-  const args = ["--yes", "--package", IMGGEN_REPO, "imggen-imggen2", "--", "--component", "imggen2"];
+  const args = ["--yes", "--allow-git=all", "--package", IMGGEN_REPO, "imggen-imggen2", "--", "--component", "imggen2"];
   if (manifest.agent_host) args.push("--agent", manifest.agent_host);
   args.push("--target", manifest.imggen2_target, "--force", "--skip-codex", "--no-register");
   // Per-host saved QC settings remain owned by the installed configuration.
@@ -277,7 +277,7 @@ export function update(manifest, { dryRun, forceCodex, component = null, interac
       run(imggen.command, imggen.args, { dryRun, label: `ImgGen2 update${hostLabel}` });
     }
     if (installation.components.includes("mpw")) {
-      const mpwArgs = ["--yes", "--package", MPW_REPO, "heituzmpw", "--"];
+      const mpwArgs = ["--yes", "--allow-git=all", "--package", MPW_REPO, "heituzmpw", "--"];
       if (installation.agent_host) mpwArgs.push("--target", installation.agent_host);
       mpwArgs.push("--dest", installation.mpw_target, "--force", "--quiet");
       const mpw = npxInvocation(windows, mpwArgs);

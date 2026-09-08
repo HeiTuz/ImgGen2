@@ -19,7 +19,7 @@ MPW는 프롬프트를 만드는 별도 스킬입니다. 통합 설치기에서 
 ### 명령은 하나. 필요한 도구만 선택하세요.
 
 ```sh
-npx --yes --package github:HeiTuz/ImgGen2 imggen-imggen2
+npx --yes --allow-git=all --package github:HeiTuz/ImgGen2 imggen-imggen2
 ```
 
 일반 터미널에서 실행하면 설치할 구성요소와 에이전트 호스트를 선택합니다.
@@ -43,16 +43,18 @@ Install what?
 
 ```sh
 # ImgGen2만
-npx --yes --package github:HeiTuz/ImgGen2 imggen-imggen2 -- --component imggen2
+npx --yes --allow-git=all --package github:HeiTuz/ImgGen2 imggen-imggen2 -- --component imggen2
 
 # MPW만
-npx --yes --package github:HeiTuz/ImgGen2 imggen-imggen2 -- --component mpw
+npx --yes --allow-git=all --package github:HeiTuz/ImgGen2 imggen-imggen2 -- --component mpw
 
 # 둘 다
-npx --yes --package github:HeiTuz/ImgGen2 imggen-imggen2 -- --component all
+npx --yes --allow-git=all --package github:HeiTuz/ImgGen2 imggen-imggen2 -- --component all
 ```
 
-Bun을 쓴다면 `npx --yes` 대신 `bunx`를 사용합니다.
+npm 12의 GitHub 설치 정책에 맞춰 `--allow-git=all`을 **이 명령에만** 적용합니다. 전역 설정은 변경하지 않습니다. [npm 공식 설정 문서](https://docs.npmjs.com/using-npm/config/#allow-git)
+
+Bun을 쓴다면 다음 명령을 사용합니다.
 
 ```sh
 bunx --package github:HeiTuz/ImgGen2 imggen-imggen2 -- --component all
@@ -65,13 +67,13 @@ bunx --package github:HeiTuz/ImgGen2 imggen-imggen2 -- --component all
 
 ```sh
 # Codex에 두 스킬 설치
-npx --yes --package github:HeiTuz/ImgGen2 imggen-imggen2 -- --component all --agent codex
+npx --yes --allow-git=all --package github:HeiTuz/ImgGen2 imggen-imggen2 -- --component all --agent codex
 
 # Claude Code에 MPW만 설치
-npx --yes --package github:HeiTuz/ImgGen2 imggen-imggen2 -- --component mpw --agent claude
+npx --yes --allow-git=all --package github:HeiTuz/ImgGen2 imggen-imggen2 -- --component mpw --agent claude
 
 # 파일을 쓰기 전에 계획 확인
-npx --yes --package github:HeiTuz/ImgGen2 imggen-imggen2 -- --component all --agent codex --dry-run
+npx --yes --allow-git=all --package github:HeiTuz/ImgGen2 imggen-imggen2 -- --component all --agent codex --dry-run
 ```
 
 | `--agent` | ImgGen2 경로 | MPW 경로 |
@@ -87,7 +89,7 @@ npx --yes --package github:HeiTuz/ImgGen2 imggen-imggen2 -- --component all --ag
 MPW 자체 설치기를 바로 호출할 수도 있습니다. 이때 호스트 옵션 이름은 **`--target`**입니다.
 
 ```sh
-npx --yes --package github:HeiTuz/MPW heituzmpw -- --target codex
+npx --yes --allow-git=all --package github:HeiTuz/MPW heituzmpw -- --target codex
 ```
 
 MPW 자체 설치기의 자동 호스트 기본값은 Claude Code입니다. 두 스킬의 설치 위치를 맞추려면 호스트를 명시하거나 위 통합 설치기를 사용하세요.
@@ -217,7 +219,7 @@ node ./ImgGen2-source/scripts/install.mjs --component imggen2 --agent codex
 Windows는 PowerShell·cmd·Git Bash에서 사용할 수 있습니다. 공백·한글·UNC 경로를 지원하며, 다른 OS의 `/Users/...` 경로를 Windows 경로로 추측하지 않습니다. 구형 launcher 복구는 다음 명령을 사용합니다.
 
 ```sh
-npx --yes --package github:HeiTuz/ImgGen2 imggen-imggen2 -- --component imggen2 --agent hermes --force --register
+npx --yes --allow-git=all --package github:HeiTuz/ImgGen2 imggen-imggen2 -- --component imggen2 --agent hermes --force --register
 ```
 
 자세한 경로 규칙은 [실행 계약](references/execution-contract.md), 상품 공유폴더 사용법은 [폴더 배치 예제](examples/dint-shared-folder-apparel-batch.md)를 참고하세요.

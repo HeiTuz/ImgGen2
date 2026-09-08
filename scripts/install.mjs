@@ -61,7 +61,7 @@ function usage(code = 0) {
   out(`ImgGen2 unified installer
 
 Usage:
-  npx --yes --package github:HeiTuz/ImgGen2 imggen-imggen2 -- [options]
+  npx --yes --allow-git=all --package github:HeiTuz/ImgGen2 imggen-imggen2 -- [options]
   bunx --package github:HeiTuz/ImgGen2 imggen-imggen2 -- [options]
 
 Options:
@@ -154,7 +154,7 @@ export async function selectComponent(options, { interactive = Boolean(process.s
 }
 
 export function mpwInstallArgs(plan, { force = false } = {}) {
-  const args = ["--yes", "--package", "github:HeiTuz/MPW", "heituzmpw", "--"];
+  const args = ["--yes", "--allow-git=all", "--package", "github:HeiTuz/MPW", "heituzmpw", "--"];
   if (plan.host) args.push("--target", plan.host);
   args.push("--dest", plan.mpwTarget, "--quiet");
   if (force) args.push("--force");
