@@ -40,12 +40,12 @@ try {
   const legacyMpw = path.join(migrationRenameHome, ".hermes", "skills", "prompt-writing", "HeiTuzMPW");
   fs.mkdirSync(legacyConfig, { recursive: true }); fs.writeFileSync(path.join(legacyConfig, "installation.json"), "{}");
   fs.mkdirSync(legacyImg, { recursive: true }); fs.mkdirSync(legacyMpw, { recursive: true });
-  const planned = migrateLegacyInstallPaths(migrationRenameHome, { windows: false, config: path.join(process.env.XDG_CONFIG_HOME, "imggen") }, { dryRun: true });
+  const planned = migrateLegacyInstallPaths(migrationRenameHome, { windows: false, config: path.join(process.env.XDG_CONFIG_HOME, "imggen") }, { dryRun: true, component: "all" });
   assert.equal(planned.length, 3);
   assert.equal(fs.existsSync(legacyImg), true);
   assert.equal(fs.existsSync(legacyConfig), true);
   assert.equal(fs.existsSync(path.join(migrationRenameHome, ".hermes", "skills", "ImgGen2")), false);
-  const renamed = migrateLegacyInstallPaths(migrationRenameHome, { windows: false, config: path.join(process.env.XDG_CONFIG_HOME, "imggen") });
+  const renamed = migrateLegacyInstallPaths(migrationRenameHome, { windows: false, config: path.join(process.env.XDG_CONFIG_HOME, "imggen") }, { component: "all" });
   assert.equal(renamed.length, 3);
   assert.equal(fs.existsSync(path.join(process.env.XDG_CONFIG_HOME, "imggen", "installation.json")), true);
   assert.equal(fs.existsSync(path.join(migrationRenameHome, ".hermes", "skills", "ImgGen2")), true);
@@ -78,7 +78,7 @@ try {
       imggen2_target: "C:\\Users\\alice\\AppData\\Local\\Temp\\_npx\\123\\package",
       mpw_target: "C:\\Users\\alice\\.hermes\\skills\\prompt-writing\\MPW",
     }, { home: "C:\\Users\\alice", windows: true, env: { TEMP: "C:\\Users\\alice\\AppData\\Local\\Temp" } }),
-    /transient.*Repair with: npx --yes github:HeiTuz\/ImgGen2 -- --force --register/iu,
+    /transient.*Repair with: npx --yes --package github:HeiTuz\/ImgGen2 imggen-imggen2/iu,
   );
   const plan = invoke(["scripts/install.mjs", "--dry-run"], { HEITUZ_TEST_PLATFORM: "win32", LOCALAPPDATA: path.join(temp, "local"), APPDATA: path.join(temp, "roaming") });
   assert.match(plan, /powershell\.exe/);
@@ -168,7 +168,7 @@ try {
   assert.equal(fs.readFileSync(multipleManifest, "utf8"), multipleManifestBeforeUpdate);
   for (const host of ["hermes", "claude", "codex"]) {
     assert.equal(multipleUpdate.includes(`ImgGen2 update (${host})`), true);
-    assert.equal(multipleUpdate.includes(`MPW update (${host})`), true);
+    assert.equal(multipleUpdate.includes(`MPW update (${host})`), false);
   }
 
   const target = path.join(temp, "imggen2");
@@ -191,7 +191,13 @@ try {
   const updater = invokeInstalled(["update", "--dry-run"]);
   assert.match(updater, /ImgGen2 update/);
   assert.doesNotMatch(updater, /--vision-qc/);
-  assert.match(updater, /MPW update/);
+  assert.doesNotMatch(updater, /MPW update/);
+  const bothUpdater = invokeInstalled(["update", "--component", "all", "--dry-run"]);
+  assert.match(bothUpdater, /MPW update/);
+  const promptUpdater = invokeInstalled(["update", "--component", "mpw", "--dry-run"]);
+  assert.match(promptUpdater, /MPW update/);
+  assert.doesNotMatch(promptUpdater, /ImgGen2 update|Codex CLI install/);
+  assert.equal(JSON.parse(invokeInstalled(["status"])).healthy, true);
   assert.equal(updater.includes(os.homedir()), false, "update dry-run leaked the developer home directory");
   const visionQcSetup = invokeInstalled(["vision-qc", "setup"]);
   assert.match(visionQcSetup, /host's default Vision model/);

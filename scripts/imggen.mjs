@@ -8,7 +8,14 @@ import { spawnSync } from "node:child_process";
 const IMGGEN_REPO = "github:HeiTuz/ImgGen2";
 const MPW_REPO = "github:HeiTuz/MPW";
 
-const REPAIR_COMMAND = "npx --yes github:HeiTuz/ImgGen2 -- --force --register";
+const REPAIR_COMMAND = "npx --yes --package github:HeiTuz/ImgGen2 imggen-imggen2 -- --component imggen2 --force --register";
+export function selectedComponents(installation, requested = null) {
+  if (requested !== null && !["imggen2", "mpw", "all"].includes(requested)) throw new Error("--component must be imggen2, mpw, or all");
+  const values = requested !== null ? (requested === "all" ? ["imggen2", "mpw"] : [requested]) : (installation.components || ["imggen2"]);
+  if (!Array.isArray(values) || !values.length || values.some((value) => !["imggen2", "mpw"].includes(value))) throw new Error("Invalid installation components");
+  return [...new Set(values)];
+}
+
 function platform() {
   return process.env.HEITUZ_TEST_PLATFORM || process.platform;
 }
@@ -36,7 +43,8 @@ export function isTransientWindowsPath(candidate, env = process.env) {
 export function assertPersistentTargets(manifest, { windows = locations().windows, env = process.env } = {}) {
   if (!windows) return;
   for (const installation of manifestInstallations(manifest)) {
-    for (const [label, candidate] of [["ImgGen2", installation.imggen2_target], ["MPW", installation.mpw_target]]) {
+    const selected = selectedComponents(installation);
+    for (const [label, candidate] of [["ImgGen2", selected.includes("imggen2") && installation.imggen2_target], ["MPW", selected.includes("mpw") && installation.mpw_target]]) {
       if (isTransientWindowsPath(candidate, env)) {
         throw new Error(`${label} target is inside a transient TEMP/npx/bunx path: ${candidate}`);
       }
@@ -53,7 +61,7 @@ function inferredAgentHost(home, installation) {
       ? path.join(home, root, "skills", "prompt-writing", "MPW")
       : path.join(home, root, "skills", "MPW");
     if (normalized(installation.imggen2_target) === normalized(imggen) &&
-        normalized(installation.mpw_target) === normalized(mpw)) return host;
+        (!installation.mpw_target || normalized(installation.mpw_target) === normalized(mpw))) return host;
   }
   return null;
 }
@@ -61,7 +69,7 @@ function inferredAgentHost(home, installation) {
 export function repairLegacyManifest(manifest, { home = locations().home, windows = locations().windows, env = process.env } = {}) {
   if (manifest.version !== 1) return manifest;
   const installations = manifestInstallations(manifest);
-  if (installations.length !== 1 || !installations[0].imggen2_target || !installations[0].mpw_target) {
+  if (installations.length !== 1 || !installations[0].imggen2_target) {
     throw new Error(`Legacy v1 manifest is ambiguous. Repair with: ${REPAIR_COMMAND}`);
   }
   try {
@@ -110,7 +118,11 @@ export function installationHealth(manifest, loc = locations()) {
     const mpw_exists = Boolean(installation.mpw_target && fs.existsSync(installation.mpw_target));
     const imggen2_version = installation.imggen2_target ? installedVersion(installation.imggen2_target) : null;
     const mpw_version = installation.mpw_target ? installedVersion(installation.mpw_target) : null;
+    const imageManaged = selectedComponents(installation).includes("imggen2");
+    const mpwManaged = selectedComponents(installation).includes("mpw");
     const status = {
+      components: selectedComponents(installation),
+      mpw_managed: mpwManaged,
       agent_host: installation.agent_host || null,
       imggen2_target: installation.imggen2_target || null,
       imggen2_exists,
@@ -119,12 +131,12 @@ export function installationHealth(manifest, loc = locations()) {
       mpw_exists,
       mpw_version,
     };
-    if (!installation.imggen2_target || !installation.mpw_target) problems.push("manifest target is incomplete");
-    if (!imggen2_exists) problems.push(`ImgGen2 target missing: ${installation.imggen2_target}`);
-    else if (!fs.existsSync(path.join(installation.imggen2_target, "scripts", "imggen.mjs"))) problems.push(`updater missing from ${installation.imggen2_target}`);
-    if (!imggen2_version) problems.push(`ImgGen2 installed version unreadable at ${installation.imggen2_target}`);
-    if (!mpw_exists) problems.push(`MPW target missing: ${installation.mpw_target}`);
-    if (!mpw_version) problems.push(`MPW installed version unreadable at ${installation.mpw_target}`);
+    if ((imageManaged && !installation.imggen2_target) || (mpwManaged && !installation.mpw_target)) problems.push("manifest target is incomplete");
+    if (imageManaged && !imggen2_exists) problems.push(`ImgGen2 target missing: ${installation.imggen2_target}`);
+    else if (imageManaged && !fs.existsSync(path.join(installation.imggen2_target, "scripts", "imggen.mjs"))) problems.push(`updater missing from ${installation.imggen2_target}`);
+    if (imageManaged && !imggen2_version) problems.push(`ImgGen2 installed version unreadable at ${installation.imggen2_target}`);
+    if (mpwManaged && !mpw_exists) problems.push(`MPW target missing: ${installation.mpw_target}`);
+    if (mpwManaged && !mpw_version) problems.push(`MPW installed version unreadable at ${installation.mpw_target}`);
     return status;
   });
   const hermes = installations.find((installation) => installation.agent_host === "hermes");
@@ -137,10 +149,10 @@ export function installationHealth(manifest, loc = locations()) {
     imggen2_version: installedVersion(expectedHermes.imggen2_target),
     mpw_version: installedVersion(expectedHermes.mpw_target),
   };
-  if (hermes && !active_hermes.imggen2_target_matches) problems.push(`Hermes ImgGen2 target is not active: ${hermes.imggen2_target}`);
-  if (hermes && !active_hermes.mpw_target_matches) problems.push(`Hermes MPW target is not active: ${hermes.mpw_target}`);
-  if (hermes && !active_hermes.imggen2_version) problems.push(`active Hermes ImgGen2 version unreadable: ${expectedHermes.imggen2_target}`);
-  if (hermes && !active_hermes.mpw_version) problems.push(`active Hermes MPW version unreadable: ${expectedHermes.mpw_target}`);
+  if (hermes && selectedComponents(hermes).includes("imggen2") && !active_hermes.imggen2_target_matches) problems.push(`Hermes ImgGen2 target is not active: ${hermes.imggen2_target}`);
+  if (hermes && selectedComponents(hermes).includes("mpw") && !active_hermes.mpw_target_matches) problems.push(`Hermes MPW target is not active: ${hermes.mpw_target}`);
+  if (hermes && selectedComponents(hermes).includes("imggen2") && !active_hermes.imggen2_version) problems.push(`active Hermes ImgGen2 version unreadable: ${expectedHermes.imggen2_target}`);
+  if (hermes && selectedComponents(hermes).includes("mpw") && !active_hermes.mpw_version) problems.push(`active Hermes MPW version unreadable: ${expectedHermes.mpw_target}`);
   const launcher_surfaces = loc.windows
     ? {
         cmd: path.join(loc.bin, "imggen.cmd"),
@@ -151,7 +163,7 @@ export function installationHealth(manifest, loc = locations()) {
   const launcherExpectations = loc.windows
     ? { cmd: /%APPDATA%\\ImgGen2\\imggen\.mjs/iu, powershell: /\$env:APPDATA\\ImgGen2\\imggen\.mjs/iu, git_bash: /\$appdata\/HeiTuz\/imggen\.mjs/u }
     : { posix: /imggen\.mjs/u };
-  for (const [surface, launcher] of Object.entries(launcher_surfaces)) {
+  for (const [surface, launcher] of (installations.some((installation) => selectedComponents(installation).includes("imggen2")) ? Object.entries(launcher_surfaces) : [])) {
     if (!fs.existsSync(launcher)) {
       problems.push(`${surface} launcher missing: ${launcher}`);
       continue;
@@ -217,13 +229,13 @@ function usage(code = 0) {
   out(`HeiTuz unified updater
 
 Usage:
-  imggen update [--dry-run] [--codex]
+  imggen update [--component imggen2|mpw|all] [--dry-run] [--codex]
   imggen status
   imggen vision-qc setup
   imggen vision-qc status
 
 Commands:
-  update       Refresh ImgGen2 and MPW from their canonical GitHub repositories.
+  update       Refresh the registered components, or only the --component selection.
                Codex updates only when missing or when --codex is supplied.
   status       Print the recorded installation targets.
   vision-qc    Show the host-default Vision QC mode or setup guidance.
@@ -232,11 +244,10 @@ Commands:
 }
 
 export function imggenUpdateArgs(manifest, { interactive }) {
-  const args = ["--yes", IMGGEN_REPO, "--"];
+  const args = ["--yes", "--package", IMGGEN_REPO, "imggen-imggen2", "--", "--component", "imggen2"];
   if (manifest.agent_host) args.push("--agent", manifest.agent_host);
-  args.push("--target", manifest.imggen2_target, "--mpw-target", manifest.mpw_target, "--force", "--skip-mpw", "--skip-codex", "--no-register");
-  // The installed per-host config owns its saved preference. Passing a
-  // top-level manifest default here would overwrite another host's setting.
+  args.push("--target", manifest.imggen2_target, "--force", "--skip-codex", "--no-register");
+  // Per-host saved QC settings remain owned by the installed configuration.
   return args;
 }
 
@@ -247,36 +258,48 @@ export function manifestInstallations(manifest) {
   return [manifest];
 }
 
-export function update(manifest, { dryRun, forceCodex, interactive = Boolean(process.stdin.isTTY && process.stdout.isTTY) }) {
+export function update(manifest, { dryRun, forceCodex, component = null, interactive = Boolean(process.stdin.isTTY && process.stdout.isTTY) }) {
   const { windows } = locations();
-  const installations = manifestInstallations(manifest);
-  assertPersistentTargets(manifest, { windows });
-  if (installations.some((installation) => !installation.imggen2_target || !installation.mpw_target)) {
+  const installations = manifestInstallations(manifest).map((installation) => ({ ...installation, components: selectedComponents(installation, component) }));
+  assertPersistentTargets({ installations }, { windows });
+  if (installations.some((installation) => installation.components.some((part) => !(part === "mpw" ? installation.mpw_target : installation.imggen2_target)))) {
     throw new Error("Installation manifest is incomplete; rerun the ImgGen2 installer.");
   }
-  if (forceCodex || !codexExists(windows)) {
+  if (forceCodex && !installations.some((installation) => installation.components.includes("imggen2"))) throw new Error("--codex requires the ImgGen2 component");
+  if (installations.some((installation) => installation.components.includes("imggen2")) && (forceCodex || !codexExists(windows))) {
     const plan = codexInstallCommand(windows);
     run(plan.command, plan.args, { dryRun, label: "official Codex CLI install/update" });
   }
   for (const installation of installations) {
     const hostLabel = installation.agent_host ? ` (${installation.agent_host})` : "";
-    const imggen = npxInvocation(windows, imggenUpdateArgs(installation, { interactive }));
-    run(imggen.command, imggen.args, { dryRun, label: `ImgGen2 update${hostLabel}` });
-    const mpwArgs = ["--yes", MPW_REPO, "--"];
-    if (installation.agent_host) mpwArgs.push("--target", installation.agent_host);
-    mpwArgs.push("--dest", installation.mpw_target, "--force", "--quiet");
-    const mpw = npxInvocation(windows, mpwArgs);
-    run(mpw.command, mpw.args, { dryRun, label: `MPW update${hostLabel}` });
+    if (installation.components.includes("imggen2")) {
+      const imggen = npxInvocation(windows, imggenUpdateArgs(installation, { interactive }));
+      run(imggen.command, imggen.args, { dryRun, label: `ImgGen2 update${hostLabel}` });
+    }
+    if (installation.components.includes("mpw")) {
+      const mpwArgs = ["--yes", "--package", MPW_REPO, "heituzmpw", "--"];
+      if (installation.agent_host) mpwArgs.push("--target", installation.agent_host);
+      mpwArgs.push("--dest", installation.mpw_target, "--force", "--quiet");
+      const mpw = npxInvocation(windows, mpwArgs);
+      run(mpw.command, mpw.args, { dryRun, label: `MPW update${hostLabel}` });
+    }
   }
   if (!dryRun) {
-    const health = installationHealth(manifest);
+    const health = installationHealth({ ...manifest, installations });
     if (!health.healthy) throw new Error(`Update completed but installation remains degraded: ${health.problems.join("; ")}`);
   }
 }
 
 function main(argv) {
   const command = argv[0] || "help";
-  const flags = new Set(argv.slice(1));
+  const tail = argv.slice(1);
+  let component = null;
+  for (let index = 0; index < tail.length; index += 1) {
+    if (tail[index] === "--component") { component = tail[index + 1]; if (!component || component.startsWith("--")) throw new Error("--component needs imggen2, mpw, or all"); tail.splice(index, 2); index -= 1; }
+    else if (tail[index].startsWith("--component=")) { component = tail[index].slice(12); tail.splice(index, 1); index -= 1; }
+  }
+  if (component !== null) selectedComponents({}, component);
+  const flags = new Set(tail);
   if (command === "help" || command === "--help" || command === "-h") usage(0);
   const loc = locations();
   const { manifest } = loc;
@@ -284,7 +307,7 @@ function main(argv) {
   const original = JSON.parse(fs.readFileSync(manifest, "utf8"));
   const data = repairLegacyManifest(original);
   if (data !== original && command === "update" && !flags.has("--dry-run")) writeJsonAtomic(manifest, data);
-  assertPersistentTargets(data);
+  if (command !== "update") assertPersistentTargets(data);
   if (command === "status") {
     const health = installationHealth(data, loc);
     console.log(JSON.stringify({
@@ -309,8 +332,8 @@ function main(argv) {
   for (const flag of flags) {
     if (!new Set(["--dry-run", "--codex"]).has(flag)) usage(2);
   }
-  update(data, { dryRun: flags.has("--dry-run"), forceCodex: flags.has("--codex") });
-  if (!flags.has("--dry-run")) console.log("ImgGen2 and MPW are updated.");
+  update(data, { dryRun: flags.has("--dry-run"), forceCodex: flags.has("--codex"), component });
+  if (!flags.has("--dry-run")) console.log("Selected components are updated.");
 }
 
 if (!process.env.HEITUZ_INSTALLER_IMPORT) {

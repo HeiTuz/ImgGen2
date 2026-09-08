@@ -1,6 +1,6 @@
 {
   "name": "imggen-imggen2-skill",
-  "version": "1.13.0",
+  "version": "1.14.0",
   "private": false,
   "description": "Provenance-safe ChatGPT subscription image production skill.",
   "license": "MIT",
@@ -31,7 +31,7 @@
     "!**/.*"
   ],
   "scripts": {
-    "test": "node scripts/run_python_tests.mjs && node scripts/test_agent_detection.mjs && node scripts/test_installer_privacy.mjs && node scripts/test_unified_installer.mjs && node scripts/test_vision_qc_setup.mjs && node scripts/test_windows_paths.mjs && node scripts/test_packaged_helper.mjs",
+    "test": "node scripts/run_python_tests.mjs && node scripts/test_agent_detection.mjs && node scripts/test_installer_privacy.mjs && node scripts/test_unified_installer.mjs && node scripts/test_vision_qc_setup.mjs && node scripts/test_windows_paths.mjs && node scripts/test_packaged_helper.mjs && node scripts/test_component_install.mjs",
     "smoke:install": "node scripts/smoke_install.mjs",
     "smoke:runtime": "node scripts/run_python_tests.mjs"
   },

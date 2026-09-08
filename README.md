@@ -1,293 +1,244 @@
-# ImgGen2
+<div align="center">
 
-## 생성 버튼은 누구나 누릅니다. **팔리고, 선택되고, 납품되는 이미지는 다릅니다.**
+![ImgGen2 — From brief to verified image](https://raw.githubusercontent.com/HeiTuz/ImgGen2/main/.github/assets/hero.svg)
 
-[![Release](https://img.shields.io/github/v/release/HeiTuz/ImgGen2?style=flat-square)](https://github.com/HeiTuz/ImgGen2/releases/latest)
-[![CI](https://img.shields.io/github/actions/workflow/status/HeiTuz/ImgGen2/ci.yml?branch=main&style=flat-square&label=CI)](https://github.com/HeiTuz/ImgGen2/actions)
-[![License: MIT](https://img.shields.io/badge/license-MIT-black?style=flat-square)](LICENSE)
+**한 장의 아이디어를, 검수한 이미지 파일로.**
 
-**ImgGen2**는 ChatGPT 구독을 실제 이미지 제작 파이프라인으로 바꾸는 스킬입니다.
+[![Release](https://img.shields.io/github/v/release/HeiTuz/ImgGen2?style=flat-square&color=264d43)](https://github.com/HeiTuz/ImgGen2/releases/latest) [![CI](https://img.shields.io/github/actions/workflow/status/HeiTuz/ImgGen2/ci.yml?branch=main&style=flat-square&label=Windows%20%C2%B7%20macOS%20%C2%B7%20Linux)](https://github.com/HeiTuz/ImgGen2/actions) [![MIT](https://img.shields.io/badge/license-MIT-334e5b?style=flat-square)](LICENSE)
 
-제품 사진 한 장부터 캠페인 비주얼 100장까지, 생성하고 끝내지 않습니다. 레퍼런스를 지키고, 후보를 비교하고, 실패한 컷만 다시 만들고, **바로 쓸 수 있는 최종본만 남깁니다.**
+[설치](#설치) · [무엇을 만들 수 있나요](#무엇을-만들-수-있나요) · [사용법](#사용법) · [업데이트](#업데이트) · [문서](#문서)
 
-## 이런 이미지를 만듭니다
+</div>
 
-### 한 장이면, 한 장부터 제대로
+ImgGen2는 Codex 구독 경로로 이미지를 만들고, 레퍼런스가 필요한 작업은 원본과 비교하며, 실패한 컷만 다시 만드는 에이전트 스킬입니다. **정확한 수량, 이어서 작업하기, 실제 파일 확인**까지 한 흐름으로 다룹니다.
 
-텍스트로 새 이미지를 만들고, 레퍼런스 이미지를 원하는 장면으로 바꿉니다.
+MPW는 프롬프트를 만드는 별도 스킬입니다. 통합 설치기에서 **ImgGen2만, MPW만, 둘 다** 선택할 수 있습니다.
 
-제품 디테일, 인물의 정체성, 반드시 유지해야 할 요소를 먼저 잠급니다. 분위기는 과감하게 바꿔도 결과의 주인공은 망가지지 않습니다.
+## 설치
 
-### 여러 장이면, 하나의 캠페인처럼
+### 명령은 하나. 필요한 도구만 선택하세요.
 
-제품컷, 룩북, 카드뉴스, 광고 소재는 한 장씩 운에 맡기는 순간 톤도 품질도 흔들립니다.
-
-ImgGen2는 같은 목표를 공유하는 이미지들을 한 세트로 관리해, **첫 컷부터 마지막 컷까지 한 브랜드처럼 보이게** 만듭니다.
-
-### 제품은 지키고, 판매력은 끌어올립니다
-
-제품 사진은 예쁘기만 해서는 안 됩니다. 고객이 받을 바로 그 제품이어야 합니다.
-
-앞·뒤·소재·디테일을 빠뜨리지 않고 후보 세트를 비교합니다. 최종 폴더에는 **선택된 판매용 컷만 남습니다.**
-
-### 실패한 컷이 최종본에 숨어들지 못합니다
-
-그럴듯하지만 틀린 이미지를 조용히 섞어두지 않습니다.
-
-완성도, 제품 충실도, 구도, 일관성을 기준으로 결과를 점검하고 실패한 부분만 다시 만듭니다. 좋은 컷까지 갈아엎는 재생성 낭비를 줄입니다.
-
-## 이런 작업이라면 바로 체감합니다
-
-- ChatGPT로 이미지 만들지만 결과 관리까지 제대로 하고 싶은 사람
-- 제품 사진·패션 비주얼·브랜드 콘텐츠를 여러 장 제작하는 사람
-- 레퍼런스를 쓰면서도 핵심 요소가 무너지는 게 싫은 사람
-- 생성 이미지와 최종 납품 이미지를 깔끔하게 분리하고 싶은 사람
-- “만들었다”가 아니라 “검수해서 쓸 수 있다”를 원하는 사람
-
-## 30초면 제작 환경이 붙습니다
-
-**한 줄이면 공식 Codex CLI + ImgGen2 + MPW가 같이 붙습니다.** 설치기가 이 컴퓨터의 에이전트 환경(Hermes·Claude Code·Codex)을 자동 감지해 맞는 위치를 고릅니다.
-
-```bash
+```sh
 npx --yes --package github:HeiTuz/ImgGen2 imggen-imggen2
-# 또는
-bunx --package github:HeiTuz/ImgGen2 imggen-imggen2
 ```
 
-### 자동 감지와 호스트 선택
+일반 터미널에서 실행하면 설치할 구성요소와 에이전트 호스트를 선택합니다.
 
-- **감지 신호**: `~/.hermes`, `~/.claude`, `~/.codex` 같은 잘 알려진 스킬 디렉터리·CLI 설치 흔적만 봅니다. 비밀값이나 설정 파일 내용은 읽지 않습니다.
-- **대화형 터미널**: 감지된 호스트를 보여주고 하나를 선택·확인합니다.
-- **CI·비대화형**: 절대 묻지 않습니다. 1개 감지 → 그대로 설치. 여러 개 감지 → Hermes 우선, Hermes가 없으면 `hermes > claude > codex` 우선순위의 첫 감지 대상. 0개 감지 → Hermes 위치에 설치(문서화된 기본값).
-- **ImgGen2와 MPW는 항상 같은 호스트에** 나란히 설치됩니다 — ImgGen2는 Hermes에, MPW는 다른 곳에 가는 어긋남이 없습니다.
-- Hermes가 기본·선호 환경입니다. Claude Code·Codex 설치는 규칙 본문이 동일한 채 호스트 통합 표면(발동·도구 명칭·frontmatter)만 마이그레이션된 변형을 받습니다 — 구조와 근거는 [agents/README.md](agents/README.md).
-
-| 호스트 | ImgGen2 | MPW |
-|---|---|---|
-| Hermes (기본·권장) | `~/.hermes/skills/ImgGen2` | `~/.hermes/skills/prompt-writing/MPW` |
-| Claude Code | `~/.claude/skills/ImgGen2` | `~/.claude/skills/MPW` |
-| Codex | `~/.codex/skills/ImgGen2` | `~/.codex/skills/MPW` |
-
-명시 디렉터리 지정(`--target <dir>`, `--mpw-target <dir>`)은 항상 자동 감지를 이깁니다.
-
-```bash
-npx --yes --package github:HeiTuz/ImgGen2 imggen-imggen2 -- \
-  --target "$HOME/.hermes/skills/ImgGen2" \
-  --mpw-target "$HOME/.hermes/skills/prompt-writing/MPW"
+```text
+Install what?
+  1  ImgGen2   이미지 생성 · 편집 · 배치 제작
+  2  MPW       프롬프트 작성 · 변주 · 핸드오프
+  3  Both      같은 호스트에 두 스킬 설치
 ```
 
-### Codex CLI 경로
-
-설치기는 운영체제에 맞춰 공식 Codex 설치 경로를 사용합니다.
-
-| 환경 | Codex 기본 경로 | `imggen` 명령 |
+| 선택 | 설치되는 것 | 이런 경우에 |
 | --- | --- | --- |
-| macOS / Linux | `~/.local/bin/codex` | `~/.local/bin/imggen` |
-| Windows | `%LOCALAPPDATA%\Programs\OpenAI\Codex\bin\codex.exe` | `%LOCALAPPDATA%\HeiTuz\bin\imggen.cmd` + `imggen.ps1` |
+| **ImgGen2** | 이미지 스킬, QC 설정, `imggen` 도우미. Codex CLI가 없으면 설치 | 바로 이미지를 만들고 싶을 때 |
+| **MPW** | 프롬프트 스킬만. ImgGen2·Codex CLI·QC 설정은 설치하지 않음 | 프롬프트를 작성하거나 다듬을 때 |
+| **Both** | 두 스킬을 선택한 호스트에 설치 | 아이디어 변주부터 이미지 제작까지 이어갈 때 |
 
-macOS/Linux는 `~/.profile`과 `~/.zprofile`에 `~/.local/bin`을 추가합니다. Windows 설치기는 구형 HeiTuz PATH/확장자 없는 launcher를 제거하고 `%LOCALAPPDATA%\HeiTuz\bin`을 사용자 PATH 맨 앞에 등록합니다. 설치 뒤 새 Terminal을 열면 바로 `imggen update`가 됩니다. Windows에서 파일을 열 앱 선택 창이 뜨는 구형 설치는 아래 명령으로 launcher를 직접 실행한 뒤 설치기를 다시 적용하세요.
+> Node.js **18 이상**과 Git이 필요합니다. 이미지 제작에는 Python과 로그인된 공식 Codex CLI가 필요하며, CI는 Python 3.12에서 검증합니다. 스킬 설치만으로 이미지 생성이 시작되거나 계정에 로그인되지는 않습니다.
 
-```powershell
-& "$env:LOCALAPPDATA\HeiTuz\bin\imggen.cmd" update
+### 선택을 명령에 담기
+
+```sh
+# ImgGen2만
+npx --yes --package github:HeiTuz/ImgGen2 imggen-imggen2 -- --component imggen2
+
+# MPW만
+npx --yes --package github:HeiTuz/ImgGen2 imggen-imggen2 -- --component mpw
+
+# 둘 다
+npx --yes --package github:HeiTuz/ImgGen2 imggen-imggen2 -- --component all
 ```
 
-### Windows 구형 임시 경로 설치 복구
+Bun을 쓴다면 `npx --yes` 대신 `bunx`를 사용합니다.
 
-`imggen status` 또는 `imggen update`가 삭제된 `imggen-unified-*` 모듈을 가리키며 `MODULE_NOT_FOUND`를 내거나, `%APPDATA%\HeiTuz\installation.json`의 `imggen2_target`이 Temp 아래 `imggenimggen2-install-*`에 남아 있다면 현재 설치기를 다시 등록합니다. 이 명령은 다른 스킬을 삭제하지 않고 Hermes의 정식 ImgGen2/MPW 디렉터리와 전역 launcher/manifest만 교체합니다.
-
-```powershell
-npx --yes --package github:HeiTuz/ImgGen2 imggen-imggen2 -- --agent hermes --force --register
+```sh
+bunx --package github:HeiTuz/ImgGen2 imggen-imggen2 -- --component all
 ```
 
-설치기는 Git Bash가 먼저 찾는 구형 `~/.local/bin/imggen`, obsolete extensionless launcher, 오래된 HeiTuz PATH marker를 검사해 임시 또는 사라진 대상을 가리키는 항목만 복구합니다. 새 터미널을 연 뒤 세 셸에서 같은 안정 updater를 찾는지 확인합니다.
+**CI·비대화형 실행과 `--dry-run`은 질문하지 않습니다.** 선택을 생략하면 ImgGen2만 설치합니다. 자동화에서는 `--component`와 `--agent`를 함께 지정하세요. 이미 설치된 스킬을 교체할 때만 `--force`를 붙입니다.
 
-```bash
-# Git Bash / MSYS
-command -v imggen
-imggen status
+<details>
+<summary><strong>호스트 선택 · 직접 경로 · 독립 MPW 설치</strong></summary>
+
+```sh
+# Codex에 두 스킬 설치
+npx --yes --package github:HeiTuz/ImgGen2 imggen-imggen2 -- --component all --agent codex
+
+# Claude Code에 MPW만 설치
+npx --yes --package github:HeiTuz/ImgGen2 imggen-imggen2 -- --component mpw --agent claude
+
+# 파일을 쓰기 전에 계획 확인
+npx --yes --package github:HeiTuz/ImgGen2 imggen-imggen2 -- --component all --agent codex --dry-run
 ```
 
-```cmd
-where imggen
-imggen status
+| `--agent` | ImgGen2 경로 | MPW 경로 |
+| --- | --- | --- |
+| `codex` | `~/.codex/skills/ImgGen2` | `~/.codex/skills/MPW` |
+| `claude` | `~/.claude/skills/ImgGen2` | `~/.claude/skills/MPW` |
+| `hermes` | `~/.hermes/skills/ImgGen2` | `~/.hermes/skills/prompt-writing/MPW` |
+
+`--agent all`은 감지한 호스트 전체를 뜻합니다. `--component all`은 두 스킬을 뜻합니다. 둘은 서로 다른 선택입니다. 비대화형 호스트 자동 감지는 `hermes > claude > codex` 순서이며, 감지 결과가 없으면 Hermes를 사용합니다.
+
+직접 경로는 ImgGen2에 `--target`, MPW에 `--mpw-target`을 사용합니다. `--skip-codex`는 Codex CLI 설치를 생략합니다. 이전 `--skip-mpw`는 ImgGen2만 선택하는 호환 옵션입니다.
+
+MPW 자체 설치기를 바로 호출할 수도 있습니다. 이때 호스트 옵션 이름은 **`--target`**입니다.
+
+```sh
+npx --yes --package github:HeiTuz/MPW heituzmpw -- --target codex
 ```
 
-```powershell
-Get-Command imggen
-imggen status
+MPW 자체 설치기의 자동 호스트 기본값은 Claude Code입니다. 두 스킬의 설치 위치를 맞추려면 호스트를 명시하거나 위 통합 설치기를 사용하세요.
+
+</details>
+
+## 무엇을 만들 수 있나요
+
+| 작업 | 요청 예시 | ImgGen2가 챙기는 것 |
+| --- | --- | --- |
+| **한 장의 장면** | “파란 도자기 컵, 린넨 위의 부드러운 자연광” | 파일 생성, PNG 형식·크기·해시 확인 |
+| **레퍼런스 편집** | “제품의 색과 봉제는 그대로, 배경만 바꿔줘” | 원본의 관찰 가능한 특징과 변경 범위 |
+| **인물 시리즈** | “이 사람 전신 6장. 인물은 같게, 장소만 다르게” | 동일 인물, 전신 구도, 첫 장 검수 후 나머지 제작 |
+| **상품 사진 세트** | “앞·뒤·포켓·소재 컷을 한 세트로 정리해줘” | 제품 구조, 컷별 목적, 누락 없는 결과 목록 |
+| **아이디어 탐색** | “독립잡지풍 고양이 이미지 100장” | MPW 프롬프트 변주, 제한된 동시 실행, 실패한 컷만 재시도 |
+
+### 실제 생성 결과
+
+![Codex 구독 경로로 생성한 파란 도자기 컵](https://raw.githubusercontent.com/HeiTuz/ImgGen2/main/.github/assets/blue-cup.png)
+
+<sub>v1.13.0 릴리스 파일럿 · Codex 구독 경로 · 1402 × 1122 PNG. 파일 구조·해시·픽셀 디코딩과 화면 확인을 마친 실제 생성물입니다. 레퍼런스 재현력이나 종합 화질의 비교 평가를 뜻하지는 않습니다.</sub>
+
+## 사용법
+
+스킬이 설치된 에이전트에게 작업을 요청하세요.
+
+```text
+ImgGen2로 이 제품 사진을 상세페이지용 6장으로 만들어줘.
+색·실루엣·소재·로고는 유지해.
+포켓과 원단 디테일을 각각 한 장 포함하고, 흰 배경으로 통일해.
 ```
 
-`status`는 선택된 launcher, manifest 경로/버전, 각 대상 존재 여부와 설치 버전, Hermes 활성 대상 일치 여부를 표시합니다. 손상이 남아 있으면 비zero로 종료하면서 복사해 실행할 수 있는 repair 명령을 출력합니다.
-## Vision-QC 설정
-
-기본 모드 `auto`는 모든 생성물을 무조건 검수하지 않습니다. 레퍼런스 이미지가 있거나, 기존 이미지를 편집하거나, 제품사진을 보정하거나, 광고 레이아웃을 만들거나, 사용자가 검수·비교를 명시한 경우에만 현재 호스트의 기본 Vision 모델을 사용합니다. 텍스트만으로 단순 이미지를 만드는 경우에는 파일 유효성만 확인하고 Vision-QC와 재생성 루프를 생략합니다. Hermes에서는 필요한 경우 `vision_analyze`가 `auxiliary.vision` 설정을 따라 실행됩니다.
-
-온라인 설치는 QC용 임시 썸네일 처리에 필요한 Pillow를 현재 사용자 Python 환경에 설치 시도합니다. PEP 668 externally-managed Python처럼 자동 설치가 거부되는 환경에서는 경고 후 설치를 계속 진행합니다. `--offline` 설치는 네트워크 접근 없이 파일만 복사하고, 전역 launcher/manifest 등록은 `--register`를 명시할 때만 수행합니다.
-
-```bash
-# 기본값이며 별도 지정할 필요 없음
-npx --yes --package github:HeiTuz/ImgGen2 imggen-imggen2 -- --vision-qc auto
-
-# QC를 완전히 끌 때만 명시
-npx --yes --package github:HeiTuz/ImgGen2 imggen-imggen2 -- --vision-qc off
+```text
+d1 포켓 컷만 다시 만들어줘. 나머지는 유지해.
+전체 앞모습 대신 포켓의 봉제와 여밈이 보이는 클로즈업으로.
 ```
 
-`auto`는 작업 위험도에 따라 Vision-QC 필요 여부를 결정하고, 필요할 때만 현재 호스트의 기본 Vision tool을 사용합니다. `off`는 시각 검수를 전부 끄지만 파일 존재·형식·크기·충돌 같은 로컬 무결성 검사는 계속 수행합니다.
+### 생성부터 전달까지
 
-대화형·비대화형 설치와 업데이트 모두 명시 옵션이 없으면 `auto`를 사용합니다. 모델·provider 선택은 ImgGen2가 아니라 호스트의 Vision 설정이 소유합니다.
-
-## Windows 및 다른 OS 경로
-
-Windows에서는 `C:\\...`, UNC 공유 경로(`\\\\server\\share\\...`), 공백·Unicode 경로, `file:///C:/...`를 지원합니다. `/mnt/c/...`는 의미가 확정되므로 `C:\\...`로 변환할 수 있습니다. 긴 절대경로는 Windows extended-length 형식으로 정규화합니다.
-
-반대로 `/Users/...`·`/Volumes/...`는 macOS 머신의 로컬 경로이므로 Windows의 `C:\\Users\\...`로 추측 변환하지 않습니다. `/home/...` 같은 Linux 경로와 다른 머신의 Windows 경로도 마찬가지입니다. 이 경우 파일을 현재 컴퓨터로 복사·재첨부하거나, 실제 Windows 로컬 경로 또는 UNC 공유 경로를 다시 지정해야 합니다. `file://` URI에 사용자명·비밀번호를 넣는 것도 거부합니다.
-
-## 공유폴더 제품사진 일괄보정
-
-`\\Dint\00.딘트공유\상품촬영\2026SS\상품코드` 같은 공유폴더 경로 하나만 주면, 패키지에 포함된 `scripts/folder_batch_prepare.py`가 원본을 읽기 전용으로 유지한 채 인벤토리 → 파일명 역할 매핑(`f1` 앞면, `b1` 뒷면, `fN`/`bN` 변형, `cN` 컬러 앞면, `d1_원단` 같은 `dN` 디테일, `sN` 합성 소스) → Vision 핸드오프 → 기본 보정·QC 계약 → 출력 계획까지 검증된 계약 파일로 만들어 줍니다. 알 수 없는 파일명이나 충돌은 즉시 실패로 보고하고, `Thumbs.db` 같은 일반 아티팩트는 무시하며, 결과물은 원본 폴더 안의 새 `AI_RESULT_타임스탬프/` 하위 폴더에만 게시됩니다(기존 파일 덮어쓰기 없음).
-
-```bash
-python scripts/folder_batch_prepare.py \
-  --input-dir "//Dint/00.딘트공유/상품촬영/2026SS/상품코드" \
-  --mode apparel-product-correction \
-  --publish-subfolder auto \
-  --dry-run
+```mermaid
+flowchart LR
+    A[요청과 원본 확인] --> B[컷 계획]
+    B --> C[첫 장 생성]
+    C --> D{검수 필요?}
+    D -->|레퍼런스·편집·광고| E[원본과 비교]
+    D -->|단순 텍스트| F[나머지 생성]
+    E -->|통과| F
+    E -->|수정 필요| C
+    F --> G[결과 검수·실패 컷 복구]
+    G --> H[파일 확인·전달]
 ```
 
-자세한 절차와 완료 JSON 예시는 [`examples/dint-shared-folder-apparel-batch.md`](examples/dint-shared-folder-apparel-batch.md)에 있습니다.
+첫 장부터 실패하면 같은 문제를 여러 장으로 늘리지 않습니다. 중간에 끊긴 작업은 기록과 파일 해시로 재개하고, 이미 통과한 컷은 보존합니다. **생성 성공, 검수 통과, 최종 전달을 구분합니다.**
 
-## 대량 아이데이션·레퍼런스 보드
+<details>
+<summary><strong>CLI로 한 장 만들기 · 배치 실행</strong></summary>
 
-“서브컬처·독립잡지 스타일 고양이 레퍼런스 100장”처럼 텍스트 아이디어를 대량으로 변주하는 작업은 Vision QC를 돌리지 않습니다. MPW가 구도·시점·조명·팔레트·재질·공간 리듬을 분산한 프롬프트를 먼저 만들고 ImgGen2가 생성만 수행합니다.
+아래 명령은 설치된 스킬 디렉터리에서 실행합니다. `--execute`가 없으면 계획만 확인합니다.
 
-```bash
-python3 examples/batch_100_variations.py \
-  --prompt "서브컬처 독립잡지 같은 검은 고양이 초상" \
-  --style "anti-mainstream editorial, dry and strange" \
-  --count 100 \
-  --output-root ./indie-editorial-cats \
-  --execute
+```sh
+python scripts/codex_subscription_transport.py --prompt "A blue ceramic cup on natural linen" --output ./cup.png
+python scripts/codex_subscription_transport.py --prompt "A blue ceramic cup on natural linen" --output ./cup.png --execute
 ```
 
-성공 후 출력 폴더에는 PNG만 남습니다. manifest·ledger·summary·임시 요청은 숨김 workspace에서 제거되며, 실패나 중단 때만 재개를 위해 workspace를 보존합니다. 단순 텍스트 한 장도 MPW가 설치돼 있으면 자동 보강되고 `--mpw off`로 끌 수 있습니다.
+레퍼런스 편집은 `--image ./original.png`을 추가합니다. 단순 텍스트 프롬프트는 MPW가 설치돼 있으면 보강할 수 있고, `--mpw off`로 끕니다.
 
-### 포함된 예제
-
-| 파일 | 기본 사례 | 수량 |
-| --- | --- | ---: |
-| `examples/indie_editorial_100.py` | 서브컬처·독립잡지 레퍼런스 | 100 |
-| `examples/fashion_moodboard_80.py` | 패션 컬렉션 무드보드 | 80 |
-| `examples/album_cover_directions_40.py` | 가상 앨범커버 방향 탐색 | 40 |
-| `examples/character_silhouettes_64.py` | 캐릭터 실루엣 탐색 | 64 |
-| `examples/package_concepts_50.py` | 텍스트 없는 패키지 콘셉트 | 50 |
-| `examples/interior_directions_48.py` | 소형 문화공간·인테리어 방향 | 48 |
-| `examples/product_hero_shots_24.py` | 상세페이지 첫 컷용 클린 제품 히어로 | 24 |
-| `examples/marketplace_thumbnails_32.py` | 오픈마켓 그리드용 썸네일 방향 | 32 |
-| `examples/detail_closeups_20.py` | 소재·봉제·마감 디테일 클로즈업 | 20 |
-| `examples/color_variant_lineup_18.py` | 옵션 선택용 컬러 변형 라인업 | 18 |
-| `examples/lifestyle_product_scenes_24.py` | 사용 맥락 라이프스타일 연출 컷 | 24 |
-| `examples/seasonal_campaign_banners_16.py` | 카피 여백 확보 시즌 캠페인 배너 | 16 |
-| `examples/bundle_set_compositions_16.py` | 번들·기프트 세트 구성 컷 | 16 |
-| `examples/beauty_cosmetics_shots_24.py` | 뷰티·코스메틱 텍스처 연출 | 24 |
-| `examples/food_beverage_shots_24.py` | 식음료 판매용 식욕 자극 컷 | 24 |
-| `examples/home_living_scenes_24.py` | 홈·리빙 침실/공간 스테이징 | 24 |
-| `examples/apparel_catalog_looks_28.py` | 의류 카탈로그·룩북 룩 탐색 | 28 |
-| `examples/single_mpw_enhanced.py` | 단일 텍스트 요청 MPW 보강 | 1 |
-
-각 예제는 인자 없이 실행하면 자기 기본값으로 dry-run합니다. `--prompt`, `--style`, `--count`, `--output-root`로 필요한 축만 덮어쓰고, 실제 생성할 때만 `--execute`를 붙입니다. 실행 로직은 `preset_runner.py`와 본체에만 있어 사례 파일을 복사해도 유지보수 코드가 늘어나지 않습니다.
-
-### 쇼핑몰 운영자용 예제 실행
-
-쇼핑몰 예제는 전부 **텍스트 전용 아이데이션 프리셋**입니다. 방향을 대량으로 탐색하는 용도이며, 레퍼런스 이미지를 넣어 실제 제품을 충실하게 보정하는 작업(`--image`)은 이 프리셋이 아니라 본체 제품사진 흐름을 사용해야 합니다.
-
-```bash
-# 기본값 그대로 dry-run으로 계획만 확인
-python3 examples/product_hero_shots_24.py
-
-# 프롬프트만 우리 상품으로 바꿔 실제 생성
-python3 examples/marketplace_thumbnails_32.py \
-  --prompt "핸드메이드 소이캔들 3종 썸네일 컷" \
-  --execute
-
-# 수량과 출력 폴더까지 덮어쓰기
-python3 examples/seasonal_campaign_banners_16.py \
-  --prompt "설 선물세트 프로모션 배너 비주얼" \
-  --count 8 \
-  --output-root ./seollal-banners \
-  --execute
+```sh
+python scripts/codex_subscription_batch.py --manifest ./jobs.jsonl --output-root ./results --workers auto --execute
 ```
 
-Windows batch ledger가 OneDrive·SMB·백신의 짧은 파일 잠금과 충돌해 `WinError 5` 또는 `WinError 32`를 내면 atomic replace를 제한적으로 재시도합니다. 출력 경로의 symlink뿐 아니라 junction/reparse point도 거부합니다. `npm test`와 install smoke는 Windows/macOS/Linux CI에서 각각 실행됩니다.
+배치의 `completion_state`와 `next_action`을 확인하세요. `awaiting_pilot_qc`는 첫 장을 검수할 차례라는 뜻이며, 전체 완료가 아닙니다. 상세 절차는 [배치 계약](references/batch-production-contract.md)에 있습니다.
 
-## 업데이트도 한 줄이면 끝
+MPW를 사용하는 텍스트 아이디어 대량 변주는 다음과 같습니다.
 
-```bash
+```sh
+python scripts/creative_batch.py --prompt "독립잡지풍 검은 고양이" --style "editorial, muted palette" --count 100 --output-root ./cats --execute
+```
+
+이 프리셋은 텍스트 아이데이션용입니다. 실제 상품을 원본과 동일하게 보정하려면 레퍼런스 기반 상품 제작 절차를 사용하세요.
+
+</details>
+
+## 검수와 결과 관리
+
+- **필요할 때 검수.** 기본 `auto`는 레퍼런스·편집·상품·광고 작업과 명시적 검수 요청에 적용합니다. 단순 텍스트 생성은 파일 무결성만 확인합니다.
+- **파일도 확인.** PNG 구조·CRC·크기·해시와 현재 세션의 소유권을 검사합니다. 파일이 있다고 무조건 성공으로 처리하지 않습니다.
+- **좋은 컷은 보존.** 실패한 컷만 원본에서 다시 생성합니다. 제품 구조, 동일 인물, 텍스트, 디테일 목적을 따로 확인합니다.
+- **설정은 유지.** 재설치 시 기존 QC 설정을 보존합니다. 변경하려면 `--vision-qc auto` 또는 `--vision-qc off`를 명시하세요.
+
+`off`는 시각 검수를 끄며 로컬 파일 검사는 유지합니다. QC는 호스트의 기본 Vision 도구를 사용합니다. Astra는 작업을 진행하는 모델이며, 그 이름을 이미지 생성 모델의 증거로 사용하지 않습니다.
+
+## 업데이트
+
+```sh
+# 등록된 구성요소 갱신
 imggen update
+
+# 이번에는 한 스킬만 갱신
+imggen update --component imggen2
+imggen update --component mpw
+
+# 두 스킬 갱신 또는 실행 계획만 확인
+imggen update --component all
+imggen update --component all --dry-run
 ```
 
-이 명령은 **ImgGen2와 MPW를 함께 갱신**합니다. Codex까지 강제로 갱신하려면:
+다시 등록하면 이번에 고른 호스트·구성요소가 `imggen`의 갱신 대상으로 저장됩니다. MPW만 설치하면 이 등록은 변경하지 않습니다.
 
-```bash
-imggen update --codex
+새 설치는 선택한 구성요소를 기록합니다. 이전 버전의 기록에 선택 정보가 없으면 ImgGen2만 갱신합니다. `--codex`를 추가하면 공식 Codex CLI도 갱신합니다.
+
+**MPW만 설치한 환경에는 `imggen` 도우미가 없습니다.** 통합 명령을 `--component mpw --force`로 다시 실행하거나, MPW 자체 설치기에 `--force`를 붙여 갱신하세요.
+
+<details>
+<summary><strong>설치 문제 해결 · 오프라인 · Windows</strong></summary>
+
+- `imggen status`로 실제 경로·버전·등록 상태를 확인합니다. 선택하지 않은 MPW가 없어도 ImgGen2 설치는 정상입니다.
+- 온라인 ImgGen2 설치는 필요하면 공식 Codex CLI와 Pillow 설치를 시도합니다. 로그인은 사용자의 Codex 환경에서 진행합니다.
+- `--offline`은 ImgGen2 파일 복사용입니다. MPW 또는 두 스킬을 선택한 실설치에는 사용할 수 없습니다. `--dry-run --component all`은 두 설치의 계획만 확인할 수 있습니다.
+- `--no-register`는 전역 도우미·설치 기록·셸 설정 등록을 생략합니다. 오프라인에서 등록까지 하려면 `--register`를 명시하세요.
+- GitHub 패키지 실행이 패키지 매니저 정책에 막히면 스킬 검색 경로 밖에 소스를 내려받아 설치기를 실행하세요.
+
+```sh
+git clone https://github.com/HeiTuz/ImgGen2.git ./ImgGen2-source
+node ./ImgGen2-source/scripts/install.mjs --component imggen2 --agent codex
 ```
 
-무엇을 실행할지만 보고 싶다면:
+Windows는 PowerShell·cmd·Git Bash에서 사용할 수 있습니다. 공백·한글·UNC 경로를 지원하며, 다른 OS의 `/Users/...` 경로를 Windows 경로로 추측하지 않습니다. 구형 launcher 복구는 다음 명령을 사용합니다.
 
-```bash
-imggen update --dry-run
+```sh
+npx --yes --package github:HeiTuz/ImgGen2 imggen-imggen2 -- --component imggen2 --agent hermes --force --register
 ```
 
-특정 폴더에 ImgGen2만 따로 설치하는 기존 경로도 남아 있습니다.
+자세한 경로 규칙은 [실행 계약](references/execution-contract.md), 상품 공유폴더 사용법은 [폴더 배치 예제](examples/dint-shared-folder-apparel-batch.md)를 참고하세요.
 
-```bash
-npx --yes --package github:HeiTuz/ImgGen2 imggen-imggen2 -- --target "$HOME/.hermes/skills/ImgGen2" --skip-mpw --skip-codex
-```
+</details>
 
-## Grok은 명시했을 때만
+## 문서
 
-기본 이미지 생성은 계속 Codex 구독 경로를 사용합니다. Grok은 Hermes에 **xAI OAuth가 연결되어 있고**, 요청에 `Grok`, `그록`, 또는 `xAI로 생성`이 명시된 경우에만 선택됩니다.
+| 더 알아보기 | 내용 |
+| --- | --- |
+| [작업별 제작 절차](references/production-workflows.md) | 초상, 상품, 의류, 배치, 검수 |
+| [Astra 실행 설계](references/astra-orchestration.md) | 문서 분리, 상태 판단, 완료 증거 |
+| [배치 안정성·확장성](references/reliability-and-scaling.md) | 워커 제한, 공유 해시, 재개, 실패 처리 |
+| [명시적 Grok 경로](references/grok-oauth-explicit-routing.md) | Hermes xAI OAuth와 네이티브 도구가 있을 때만 사용 |
+| [호스트 오버레이](agents/README.md) | Codex·Claude Code·Hermes 설치 표면 |
+| [MPW](https://github.com/HeiTuz/MPW) | 독립 프롬프트 작성 스킬 |
 
-```text
-Grok으로 이 콘셉트 이미지를 20장 만들어줘.
-```
+기본 생성은 Codex 구독 경로입니다. Grok·Wan 등 다른 제공자는 명시적으로 요청하고 해당 환경이 준비된 경우에만 사용하며, 실패했다고 다른 제공자로 조용히 전환하지 않습니다.
 
-20장은 한꺼번에 폭격하지 않습니다. 먼저 1장으로 생성·품질을 확인한 뒤 3개 작업으로 시작해 최대 5개까지 제한적으로 처리하고, 나머지는 큐에 남깁니다. 실패한 장만 다시 생성합니다.
+---
 
-OAuth가 없거나 현재 Hermes 세션에 xAI 이미지 도구가 없으면 Grok 경로는 비활성으로 끝납니다. API 키만으로 대신 실행하거나, Codex·Higgsfield로 조용히 바꾸지 않습니다. 자세한 계약은 [`references/grok-oauth-explicit-routing.md`](references/grok-oauth-explicit-routing.md)에 있습니다.
+병렬 Codex 워커 구조의 출발점은 [gongnyang/codex-fleet](https://github.com/gongnyang/codex-fleet)입니다. 기능을 그대로 복제하기보다 세션 소유권, 검수, 재개·게시 검증을 더했습니다. [구현 비교](references/reliability-and-scaling.md)
 
-## 말하듯 요청하면 됩니다
-
-```text
-이 제품 사진을 정사각형 상세페이지 컷으로 정리해줘.
-제품의 색·실루엣·소재·봉제 디테일은 바꾸지 말고, 배경만 자연스럽게 확장해.
-```
-
-```text
-이 인물을 유지한 채, 비 오는 도쿄 골목의 패션 에디토리얼 한 컷으로 만들어줘.
-```
-
-```text
-이 브랜드의 여름 캠페인용 이미지를 6장 만들어줘.
-모든 컷이 같은 세계관과 색감으로 보이게 해.
-```
-
-```text
-이 레퍼런스들을 합쳐 프리미엄 향수 광고 비주얼을 만들어줘.
-제품 병의 형태와 라벨은 정확히 유지해.
-```
-
-## 아이디어는 과감하게. 최종본은 냉정하게.
-
-좋은 이미지는 운 좋게 나온 한 장이 아닙니다.
-
-**원하는 장면을 만들고, 기준으로 고르고, 실제로 돈을 벌고 브랜드를 세울 컷만 남기세요.**
-
-ImgGen2가 생성부터 최종 선별까지 밀어붙입니다.
-
-병렬 Codex 워커 실행 구조의 출발점은 [gongnyang/codex-fleet](https://github.com/gongnyang/codex-fleet)입니다. 원본과의 차이, 배치 재개 보호, 대량 작업 메모리 사용, 오류 시 작업 투입 중단의 구현 근거는 [배치 안정성·확장성 검토](references/reliability-and-scaling.md)에 있습니다.
-
-GPT-6 Astra용 작업 지침은 간결한 진입 문서와 모드별 절차로 나뉩니다. 배치 결과의 `completion_state`·`next_action`, PNG 구조·해시 검증, 검수 보고서에 묶인 재개, 전체 컷을 확인하는 게시 절차로 후속 행동을 정합니다. 설계 근거와 검증 한계는 [Astra 실행 설계](references/astra-orchestration.md)를 참고하세요.
-
-## License
-
-MIT © HeiTuz
+**MIT · [HeiTuz](https://github.com/HeiTuz)**

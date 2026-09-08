@@ -19,6 +19,7 @@ import {
 const source = fs.realpathSync(path.join(path.dirname(fileURLToPath(import.meta.url)), ".."));
 const args = process.argv.slice(2);
 export const ALLOWED_ROOTS = new Set(["SKILL.md", "README.md", "LICENSE", "package.json", "agents", "contracts", "examples", "references", "scripts"]);
+export const COMPONENTS = new Set(["imggen2", "mpw", "all"]);
 const VISION_QC_MODES = new Set(["auto", "off"]);
 const AGENT_TARGETS = new Set(["auto", "all", ...AGENT_HOST_PRIORITY, "gpt"]);
 
@@ -60,30 +61,31 @@ function usage(code = 0) {
   out(`ImgGen2 unified installer
 
 Usage:
-  npx --yes github:HeiTuz/ImgGen2 -- [options]
-  bunx github:HeiTuz/ImgGen2 -- [options]
+  npx --yes --package github:HeiTuz/ImgGen2 imggen-imggen2 -- [options]
+  bunx --package github:HeiTuz/ImgGen2 imggen-imggen2 -- [options]
 
 Options:
+  --component <choice>   imggen2, mpw, or all; prompts in a terminal, defaults to imggen2 otherwise
   --agent <host>         Agent host: auto (default), all, hermes, claude, or codex
   --target <directory>   Explicit ImgGen2 installation directory
   --mpw-target <dir>     Explicit MPW installation directory
-  --force                Replace an existing ImgGen2 destination
+  --force                Replace existing destinations for the selected components
   --skip-codex           Do not install/update the official Codex CLI
-  --skip-mpw             Do not install/update MPW
+  --skip-mpw             Compatibility alias for --component imggen2
   --vision-qc <mode>     Configure QC: auto (host default Vision model) or off
   --dry-run              Print the platform plan without writing or downloading
-  --offline              Local-copy mode for tests; implies --skip-codex and --skip-mpw
+  --offline              Copy ImgGen2 locally; MPW requires online installation
   --register             Also register the global imggen launcher/manifest (default for non-offline installs)
   --no-register          Copy files only; leave the global launcher, manifest, and shell profiles untouched
   -h, --help             Show this help
 
-After install: imggen update [--dry-run] [--codex]
+After ImgGen2 install: imggen update [--component imggen2|mpw|all] [--dry-run] [--codex]
 `);
   process.exit(code);
 }
 
 export function parse(argv) {
-  const options = { agent: "auto", agentExplicit: false, target: null, mpwTarget: null, force: false, skipCodex: false, skipMpw: false, dryRun: false, offline: false, register: null, visionQc: null, visionQcExplicit: false };
+  const options = { component: null, agent: "auto", agentExplicit: false, target: null, mpwTarget: null, force: false, skipCodex: false, skipMpw: false, dryRun: false, offline: false, register: null, visionQc: null, visionQcExplicit: false };
   for (let i = 0; i < argv.length; i += 1) {
     const arg = argv[i];
     if (arg === "-h" || arg === "--help") usage(0);
@@ -95,6 +97,8 @@ export function parse(argv) {
     if (arg === "--offline") { options.offline = true; continue; }
     if (arg === "--register") { options.register = true; continue; }
     if (arg === "--no-register") { options.register = false; continue; }
+    if (arg === "--component") { options.component = argv[++i]; if (!COMPONENTS.has(options.component)) usage(2); continue; }
+    if (arg.startsWith("--component=")) { options.component = arg.slice("--component=".length); if (!COMPONENTS.has(options.component)) usage(2); continue; }
     if (arg === "--agent" || arg === "--target" || arg === "--mpw-target" || arg === "--vision-qc") {
       const value = argv[++i];
       if (!value) usage(2);
@@ -127,8 +131,34 @@ export function parse(argv) {
     usage(2);
   }
   if (!AGENT_TARGETS.has(options.agent)) usage(2);
-  if (options.offline) { options.skipCodex = true; options.skipMpw = true; }
+  if (options.skipMpw && options.component && options.component !== "imggen2") throw new Error("--skip-mpw conflicts with --component; choose imggen2 or remove --skip-mpw.");
+  if (options.offline) options.skipCodex = true;
   return options;
+}
+
+export async function selectComponent(options, { interactive = Boolean(process.stdin.isTTY && process.stdout.isTTY && !process.env.CI), ask } = {}) {
+  if (options.component) return options.component;
+  if (options.skipMpw || options.offline || options.dryRun || !interactive) return "imggen2";
+  const prompt = "\nChoose what to install:\n  1  ImgGen2 — image production\n  2  MPW     — prompt writing\n  3  Both    — same agent host\nSelection [1]: ";
+  let terminal;
+  try {
+    const question = ask || ((text) => {
+      terminal = readline.createInterface({ input: process.stdin, output: process.stdout });
+      return terminal.question(text);
+    });
+    const answer = (await question(prompt)).trim().toLowerCase();
+    const selected = ({ "": "imggen2", "1": "imggen2", "2": "mpw", "3": "all" })[answer] || answer;
+    if (!COMPONENTS.has(selected)) throw new Error("Choose 1 (ImgGen2), 2 (MPW), or 3 (both).");
+    return selected;
+  } finally { terminal?.close(); }
+}
+
+export function mpwInstallArgs(plan, { force = false } = {}) {
+  const args = ["--yes", "--package", "github:HeiTuz/MPW", "heituzmpw", "--"];
+  if (plan.host) args.push("--target", plan.host);
+  args.push("--dest", plan.mpwTarget, "--quiet");
+  if (force) args.push("--force");
+  return args;
 }
 
 const EXCLUDED_PARTS = new Set([".git", ".gjc", ".omx", "node_modules", "docs-internal", "__pycache__"]);
@@ -287,7 +317,7 @@ function migrateLegacyPath(from, to, label, dryRun = false) {
   return true;
 }
 
-export function migrateLegacyInstallPaths(home, loc, { dryRun = false } = {}) {
+export function migrateLegacyInstallPaths(home, loc, { dryRun = false, component = "imggen2" } = {}) {
   const legacyConfig = loc.windows
     ? path.join(process.env.APPDATA || path.join(home, "AppData", "Roaming"), "HeiTuz")
     : path.join(process.env.XDG_CONFIG_HOME || path.join(home, ".config"), "heituz");
@@ -301,7 +331,7 @@ export function migrateLegacyInstallPaths(home, loc, { dryRun = false } = {}) {
     [legacyMpw, path.join(home, ".hermes", "skills", "prompt-writing", "MPW"), "MPW skill"],
   ];
   const seen = new Set();
-  return moves.filter(([from, to, label]) => {
+  return moves.filter(([, , label]) => label === "MPW skill" ? component !== "imggen2" : component !== "mpw").filter(([from, to, label]) => {
     if (!fs.existsSync(from)) return false;
     const info = fs.statSync(from);
     const identity = `${info.dev}:${info.ino}`;
@@ -416,23 +446,17 @@ function validateDestination(destination, loc) {
   }
 }
 
-function prepareInstallPlans(plans, force, loc) {
-  for (let index = 0; index < plans.length; index += 1) {
-    validateDestination(plans[index].destination, loc);
-    validateDestination(plans[index].mpwTarget, loc);
-    if (pathsOverlap(plans[index].destination, plans[index].mpwTarget)) {
-      throw new Error("ImgGen2 and MPW install destinations must not overlap");
+function prepareInstallPlans(plans, force, loc, components = ["imggen2"]) {
+  const destinations = plans.flatMap((plan) => components.map((component) => component === "mpw" ? plan.mpwTarget : plan.destination));
+  for (let index = 0; index < destinations.length; index += 1) {
+    const destination = destinations[index];
+    validateDestination(destination, loc);
+    if (destinations.slice(index + 1).some((other) => pathsOverlap(destination, other))) {
+      throw new Error("Selected install destinations must not overlap");
     }
-    for (let other = index + 1; other < plans.length; other += 1) {
-      if (pathsOverlap(plans[index].destination, plans[other].destination) ||
-          pathsOverlap(plans[index].mpwTarget, plans[other].mpwTarget)) {
-        throw new Error("Multi-host install destinations must not overlap");
-      }
+    if (fs.existsSync(destination) && !force) {
+      throw new Error(`Refusing to overwrite existing installation: ${destination}; rerun with --force.`);
     }
-  }
-  for (const plan of plans) {
-    if (!fs.existsSync(plan.destination)) continue;
-    if (!force) throw new Error(`Refusing to overwrite existing installation: ${plan.destination}; rerun with --force.`);
   }
 }
 
@@ -482,20 +506,25 @@ export function installPlansTransaction(plans, visionQc, { sourceRoot = source }
 
 export async function main(argv = args) {
   const options = parse(argv);
+  const component = await selectComponent(options);
+  const components = component === "all" ? ["imggen2", "mpw"] : [component];
+  const installImages = components.includes("imggen2");
+  const installPrompts = components.includes("mpw");
+  if (!installImages && options.target && !options.mpwTarget) throw new Error("MPW destination uses --mpw-target; --target selects an ImgGen2 directory.");
+  if (options.offline && installPrompts && !options.dryRun) throw new Error("MPW requires an online install; remove --offline or use --component imggen2. No components were installed.");
   process.env.HEITUZ_INSTALLER_IMPORT = "1";
   const helper = await import(pathToFileURL(path.join(source, "scripts", "imggen.mjs")).href);
   delete process.env.HEITUZ_INSTALLER_IMPORT;
   const loc = helper.locations();
-  const migratedLegacyPaths = migrateLegacyInstallPaths(loc.home, loc, { dryRun: options.dryRun });
-  ensurePillow(loc, options);
+  const migratedLegacyPaths = migrateLegacyInstallPaths(loc.home, loc, { dryRun: options.dryRun, component });
   const plans = await resolveInstallPlans(options, loc.home);
   const primary = plans[0];
-  const visionQc = await selectVisionQc(options);
+  const visionQc = installImages ? await selectVisionQc(options) : { requested: "off", effective: "off" };
   for (const plan of plans) {
     plan.visionQc = visionQc;
     const migration = options.dryRun && migratedLegacyPaths.find((move) => path.resolve(move.to) === path.resolve(plan.destination));
     const previous = path.join(migration ? migration.from : plan.destination, "vision-qc.json");
-    if (!options.visionQcExplicit && fs.existsSync(previous)) {
+    if (installImages && !options.visionQcExplicit && fs.existsSync(previous)) {
       let saved;
       try { saved = JSON.parse(fs.readFileSync(previous, "utf8")); }
       catch { throw new Error(`Cannot read existing QC config: ${previous}; use --vision-qc auto or --vision-qc off to explicitly repair it.`); }
@@ -503,16 +532,19 @@ export async function main(argv = args) {
       plan.visionQc = { requested: VISION_QC_MODES.has(saved.requested_mode) ? saved.requested_mode : saved.qc_mode, effective: saved.qc_mode };
     }
   }
-  const register = options.register ?? !options.offline;
+  const register = installImages && (options.register ?? !options.offline);
 
   if (options.dryRun) {
     console.log(JSON.stringify({
+      components,
+      will_install_codex: installImages && !options.skipCodex && !helper.codexExists(loc.windows),
+      mpw_commands: installPrompts ? plans.map((plan) => mpwInstallArgs(plan, options)) : [],
       agent_targets: plans.map((plan) => plan.host).filter(Boolean),
       installs: plans.map((plan) => ({
         agent: plan.host,
         imggen2_target: plan.destination,
         mpw_target: plan.mpwTarget,
-        vision_qc: { requested_mode: plan.visionQc.requested, mode: plan.visionQc.effective },
+        vision_qc: installImages ? { requested_mode: plan.visionQc.requested, mode: plan.visionQc.effective } : null,
       })),
       imggen2_target: primary.destination,
       mpw_target: primary.mpwTarget,
@@ -520,41 +552,44 @@ export async function main(argv = args) {
       platform: loc.windows ? "windows" : "posix",
       register,
       migrated_legacy_paths: migratedLegacyPaths,
-      vision_qc: {
+      vision_qc: installImages ? {
         requested_mode: primary.visionQc.requested,
         mode: primary.visionQc.effective,
         config: path.join(primary.destination, "vision-qc.json"),
-      },
+      } : null,
     }, null, 2));
     return;
   }
 
-  prepareInstallPlans(plans, options.force, loc);
+  prepareInstallPlans(plans, options.force, loc, components);
+  if (installImages) ensurePillow(loc, options);
   if (register) {
     helper.assertPersistentTargets({
       installations: plans.map((plan) => ({
+        components,
         agent_host: plan.host,
         imggen2_target: plan.destination,
         mpw_target: plan.mpwTarget,
-        vision_qc: { requested_mode: plan.visionQc.requested, mode: plan.visionQc.effective },
+        vision_qc: installImages ? { requested_mode: plan.visionQc.requested, mode: plan.visionQc.effective } : null,
       })),
     }, { windows: loc.windows });
   }
-  const visionQcConfigs = installPlansTransaction(plans, visionQc);
+  const visionQcConfigs = installImages ? installPlansTransaction(plans, visionQc) : [];
 
-  if (!options.skipCodex && !helper.codexExists(loc.windows)) {
+  if (installImages && !options.skipCodex && !helper.codexExists(loc.windows)) {
     const codexPlan = helper.codexInstallCommand(loc.windows);
     run(codexPlan.command, codexPlan.args, { dryRun: false, label: "official Codex CLI install" });
   }
-  if (!options.skipMpw) {
+  if (installPrompts) {
     for (const plan of plans) {
-      const mpwArgs = ["--yes", "github:HeiTuz/MPW", "--"];
-      if (plan.host) mpwArgs.push("--target", plan.host);
-      mpwArgs.push("--dest", plan.mpwTarget, "--force", "--quiet");
-      const invocation = helper.npxInvocation(loc.windows, mpwArgs);
+      const invocation = helper.npxInvocation(loc.windows, mpwInstallArgs(plan, options));
       run(invocation.command, invocation.args, { dryRun: false, label: `MPW install${plan.host ? ` (${plan.host})` : ""}` });
+      const manifest = JSON.parse(fs.readFileSync(path.join(plan.mpwTarget, "package.json"), "utf8"));
+      if (manifest.name !== "heituzmpw" || !fs.existsSync(path.join(plan.mpwTarget, "SKILL.md"))) throw new Error("MPW installer did not materialize the expected skill.");
+      console.log(`Installed MPW${plan.host ? ` (${plan.host})` : ""} to ${plan.mpwTarget}`);
     }
   }
+  if (!installImages) return;
 
   if (!register) {
     for (const plan of plans) console.log(`Installed ImgGen2${plan.host ? ` (${plan.host})` : ""} to ${plan.destination}`);
@@ -566,6 +601,7 @@ export async function main(argv = args) {
   fs.copyFileSync(path.join(primary.destination, "scripts", "imggen.mjs"), path.join(loc.config, "imggen.mjs"));
   fs.writeFileSync(loc.manifest, JSON.stringify({
     version: 2,
+    components,
     agent_host: primary.host,
     imggen2_target: primary.destination,
     mpw_target: primary.mpwTarget,
@@ -578,6 +614,7 @@ export async function main(argv = args) {
       agent_host: plan.host,
       imggen2_target: plan.destination,
       mpw_target: plan.mpwTarget,
+      components,
       vision_qc_config: visionQcConfigs[index],
       vision_qc_requested: plan.visionQc.requested,
       vision_qc_mode: plan.visionQc.effective,
