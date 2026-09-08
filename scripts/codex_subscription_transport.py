@@ -2,7 +2,7 @@
 """Fail-closed transport for Codex CLI subscription image generation.
 
 This module never reads auth files or calls private/API-key endpoints. Live execution
-requires an explicit flag and approval environment marker; dry-run is the default.
+requires an explicit flag; dry-run is the default.
 """
 
 from __future__ import annotations
@@ -20,6 +20,7 @@ import sys
 from typing import Mapping, Sequence
 from codex_cli_resolver import CodexResolutionError, ResolvedCodex, resolve_codex_command
 from mpw_prompt_adapter import MpwPromptError, compile_single_prompt
+from image_artifacts import ArtifactError, inspect_png
 
 GENERATED_IMAGES_DIR = Path.home() / ".codex" / "generated_images"
 DOWNLOADS_DIR = Path.home() / "Downloads"
@@ -120,7 +121,9 @@ def build_command(
         "~/.codex/generated_images/<session_id>/. "
         "Do not use HTTP clients, API keys, browser/DOM automation, private APIs, "
         "or any fallback provider. "
-        f"User image request: {prompt}"
+        f"User image request: {prompt}\n"
+        "After generation, end your turn without running shell commands or moving, "
+        "copying, modifying, or deleting image files. The parent runner will collect the artifact."
     )
     command = [
         codex,
@@ -455,7 +458,9 @@ def select_fresh_session_png(
             continue
         if metadata.st_size > 0:
             fresh.append((metadata.st_mtime_ns, artifact))
-    return max(fresh, key=lambda candidate: candidate[0])[1] if fresh else None
+    if len(fresh) > 1:
+        raise TransportError("Multiple fresh session artifacts; category=ambiguous_artifact; refusing to guess ownership.")
+    return fresh[0][1] if fresh else None
 
 
 def copy_png_exclusive(source: Path, output: Path) -> int:
@@ -517,7 +522,7 @@ def classify_cli_failure(stdout: str, stderr: str) -> str:
         ("model_unavailable", r"model.{0,80}(not found|unknown|unsupported|unavailable|does not exist|invalid)"),
         ("authentication_required", r"(not logged in|login required|authentication required|unauthorized|invalid authentication)"),
         ("entitlement_denied", r"(not entitled|entitlement|does not have access|permission denied|forbidden)"),
-        ("rate_limited", r"(rate limit|too many requests|usage limit|quota exceeded)"),
+        ("rate_limited", r"(\b429\b|rate limit|too many requests|usage limit|quota exceeded)"),
         ("image_tool_unavailable", r"(image_generation|image generation|imagegen).{0,80}(unavailable|unsupported|disabled|not enabled|not found|missing)"),
         (
             "moderation_rejected",
@@ -580,6 +585,7 @@ def run(
             command,
             cwd=output.parent,
             text=True,
+            stdin=subprocess.DEVNULL,
             capture_output=True,
             timeout=timeout_seconds,
             check=False,
@@ -616,12 +622,24 @@ def run(
             "Codex CLI completed but did not produce a fresh session-scoped PNG; "
             f"{session_reason}."
         )
+    try:
+        artifact = inspect_png(generated)
+    except ArtifactError as exc:
+        raise TransportError(f"Invalid generated PNG; category=invalid_artifact; {exc}") from None
     copied_bytes = copy_png_exclusive(generated, output)
+    try:
+        copied = inspect_png(output)
+        if copied != artifact:
+            raise ArtifactError("Copied artifact does not match selected source")
+    except ArtifactError as exc:
+        output.unlink(missing_ok=True)
+        raise TransportError(f"Invalid copied PNG; category=invalid_artifact; {exc}") from None
     summary.update(
         {
             "live": True,
             "transport_state": "succeeded",
             "bytes": copied_bytes,
+            "artifact": copied,
             "source_artifact": str(generated),
             "cli_exit_code": completed.returncode,
             "warning": None,

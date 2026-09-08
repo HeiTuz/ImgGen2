@@ -2,8 +2,8 @@
 
 ## 생성 버튼은 누구나 누릅니다. **팔리고, 선택되고, 납품되는 이미지는 다릅니다.**
 
-[![Release](https://img.shields.io/github/v/release/ImgGen2/ImgGen2?style=flat-square)](https://github.com/ImgGen2/ImgGen2/releases/latest)
-[![CI](https://img.shields.io/github/actions/workflow/status/ImgGen2/ImgGen2/ci.yml?branch=main&style=flat-square&label=CI)](https://github.com/ImgGen2/ImgGen2/actions)
+[![Release](https://img.shields.io/github/v/release/HeiTuz/ImgGen2?style=flat-square)](https://github.com/HeiTuz/ImgGen2/releases/latest)
+[![CI](https://img.shields.io/github/actions/workflow/status/HeiTuz/ImgGen2/ci.yml?branch=main&style=flat-square&label=CI)](https://github.com/HeiTuz/ImgGen2/actions)
 [![License: MIT](https://img.shields.io/badge/license-MIT-black?style=flat-square)](LICENSE)
 
 **ImgGen2**는 ChatGPT 구독을 실제 이미지 제작 파이프라인으로 바꾸는 스킬입니다.
@@ -283,6 +283,10 @@ OAuth가 없거나 현재 Hermes 세션에 xAI 이미지 도구가 없으면 Gro
 **원하는 장면을 만들고, 기준으로 고르고, 실제로 돈을 벌고 브랜드를 세울 컷만 남기세요.**
 
 ImgGen2가 생성부터 최종 선별까지 밀어붙입니다.
+
+병렬 Codex 워커 실행 구조의 출발점은 [gongnyang/codex-fleet](https://github.com/gongnyang/codex-fleet)입니다. 원본과의 차이, 배치 재개 보호, 대량 작업 메모리 사용, 오류 시 작업 투입 중단의 구현 근거는 [배치 안정성·확장성 검토](references/reliability-and-scaling.md)에 있습니다.
+
+GPT-6 Astra용 작업 지침은 간결한 진입 문서와 모드별 절차로 나뉩니다. 배치 결과의 `completion_state`·`next_action`, PNG 구조·해시 검증, 검수 보고서에 묶인 재개, 전체 컷을 확인하는 게시 절차로 후속 행동을 정합니다. 설계 근거와 검증 한계는 [Astra 실행 설계](references/astra-orchestration.md)를 참고하세요.
 
 ## License
 

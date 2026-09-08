@@ -19,8 +19,10 @@ def is_symlink_or_reparse(path: Path) -> bool:
         if path.is_symlink():
             return True
         info = path.stat(follow_symlinks=False)
-    except (OSError, AttributeError, TypeError):
+    except FileNotFoundError:
         return False
+    except (OSError, AttributeError, TypeError):
+        return True  # Unknown filesystem identity must not be accepted as safe.
     attributes = getattr(info, "st_file_attributes", 0)
     reparse_flag = getattr(stat, "FILE_ATTRIBUTE_REPARSE_POINT", 0x400)
     return bool(attributes & reparse_flag)

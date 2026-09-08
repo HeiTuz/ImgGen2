@@ -5,6 +5,8 @@ from __future__ import annotations
 import argparse
 import datetime as dt
 import hashlib
+import math
+from image_artifacts import ArtifactError, inspect_png
 import importlib.util
 import json
 import os
@@ -201,15 +203,23 @@ def _validate_provenance(provenance: Any, source: Path, selected: Path) -> list[
     except fullset.ContractError as exc:
         raise _blocked(str(exc).removeprefix("blocked: ")) from exc
     gate = provenance.get("min_family_similarity_gate")
-    if not isinstance(gate, (int, float)) or isinstance(gate, bool):
+    if not isinstance(gate, (int, float)) or isinstance(gate, bool) or not math.isfinite(gate) or not fullset.MIN_FAMILY_SIMILARITY <= gate <= 1:
         raise _blocked("provenance min_family_similarity_gate must be a number")
     score = provenance.get("score")
     if not isinstance(score, dict):
         raise _blocked("provenance score must be an object with fidelity_sum, min_similarity, and average_similarity")
     for key in ("fidelity_sum", "min_similarity", "average_similarity"):
         value = score.get(key)
-        if not isinstance(value, (int, float)) or isinstance(value, bool):
+        if not isinstance(value, (int, float)) or isinstance(value, bool) or not math.isfinite(value):
             raise _blocked(f"provenance score.{key} must be a number")
+    if not gate <= score["min_similarity"] <= score["average_similarity"] <= 1 or not 0 <= score["fidelity_sum"] <= len(rows):
+        raise _blocked("provenance score does not pass the family-similarity gate")
+    sources, _, _ = _inventory(source)
+    role_map(sources)
+    expected = {unicodedata.normalize("NFC", p.stem): unicodedata.normalize("NFC", p.stem) + ".png" for p in sources}
+    actual = {row.get("output_id"): row.get("filename") for row in rows if isinstance(row, dict)}
+    if len(rows) != len(expected) or actual != expected:
+        raise _blocked("selected provenance does not match the complete source output inventory")
     names: set[str] = set()
     verified: list[dict[str, Any]] = []
     try:
@@ -225,6 +235,12 @@ def _validate_provenance(provenance: Any, source: Path, selected: Path) -> list[
                 raise _blocked(f"selected output must not be a symlink/junction/reparse point: {filename}")
             if not path.is_file() or fullset.sha256_file(path) != digest:
                 raise _blocked(f"selected output missing or hash mismatch: {filename}")
+            try:
+                artifact = inspect_png(path)
+            except ArtifactError as exc:
+                raise _blocked(f"selected PNG invalid: {filename}") from exc
+            if artifact["sha256"] != digest:
+                raise _blocked(f"selected output changed during validation: {filename}")
             verified.append({"filename": filename, "sha256": digest, "size": path.stat().st_size, "output_id": output_id, "source_candidate_set": row.get("source_candidate_set")})
     except (KeyError, TypeError, ValueError) as exc:
         raise _blocked(f"invalid selected provenance: {exc}") from exc

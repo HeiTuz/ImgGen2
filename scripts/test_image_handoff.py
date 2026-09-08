@@ -22,6 +22,15 @@ class ImageHandoffTests(unittest.TestCase):
             "metadata": {"compiler": "portable-test"},
         }
 
+    def test_reference_symlink_traversal_is_blocked_before_transport(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root=Path(tmp); request=root/"request.json"
+            request.write_text(json.dumps(self.valid()))
+            with patch.object(handoff,"is_symlink_or_reparse",return_value=True), patch.object(handoff.transport,"run") as run:
+                with self.assertRaisesRegex(handoff.HandoffError,"symlink"):
+                    handoff.consume_handoff(request,output_root=root/"out")
+                run.assert_not_called()
+
     def test_accepts_portable_contract(self):
         value = handoff.validate_handoff(self.valid())
         self.assertEqual(value["output"]["filename"], "cup-final.png")

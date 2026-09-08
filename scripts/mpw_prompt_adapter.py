@@ -21,11 +21,14 @@ class MpwPromptError(RuntimeError):
 
 def discover_mpw_root(explicit: Path | None = None) -> Path | None:
     """Return a shared-resolver installation only when its compiler is present."""
-    root = (
-        mpw_root.validate_mpw_root(explicit, source="--mpw-root")
-        if explicit is not None
-        else mpw_root.resolve_mpw_root()
-    )
+    try:
+        root = (
+            mpw_root.validate_mpw_root(explicit, source="--mpw-root")
+            if explicit is not None
+            else mpw_root.resolve_mpw_root()
+        )
+    except RuntimeError as exc:
+        raise MpwPromptError(str(exc)) from None
     if root is not None and (root / "scripts" / "compile_image_variations.py").is_file():
         return root
     return None
@@ -47,17 +50,24 @@ def compile_manifest(
     compiler = root / "scripts" / "compile_image_variations.py"
     output.parent.mkdir(parents=True, exist_ok=True)
     request = {"concept": prompt, "style": style, "output_prefix": output_prefix, "locks": {}}
-    request_path = output.with_suffix(".request.json")
-    request_path.write_text(json.dumps(request, ensure_ascii=False, sort_keys=True), encoding="utf-8")
-    command = [sys.executable, str(compiler), "--request", str(request_path), "--count", str(count), "--output", str(output)]
-    if seed is not None:
-        command.extend(("--seed", str(seed)))
-    completed = subprocess.run(command, text=True, capture_output=True, check=False)
-    request_path.unlink(missing_ok=True)
-    if completed.returncode != 0:
-        output.unlink(missing_ok=True)
-        detail = completed.stderr.strip() or "compiler failed without diagnostics"
-        raise MpwPromptError(f"MPW variation compiler failed: {detail}")
+    with tempfile.TemporaryDirectory(prefix=".imggen-compile-", dir=output.parent) as tmp:
+        request_path = Path(tmp) / "request.json"
+        compiled_path = Path(tmp) / "compiled.jsonl"
+        request_path.write_text(json.dumps(request, ensure_ascii=False, sort_keys=True), encoding="utf-8")
+        command = [sys.executable, str(compiler), "--request", str(request_path), "--count", str(count), "--output", str(compiled_path)]
+        if seed is not None:
+            command.extend(("--seed", str(seed)))
+        try:
+            completed = subprocess.run(command, text=True, capture_output=True, check=False, timeout=120)
+            if completed.returncode != 0:
+                raise MpwPromptError(f"MPW variation compiler failed (exit {completed.returncode}); output preserved.")
+            rows = [json.loads(line) for line in compiled_path.read_text(encoding="utf-8").splitlines() if line.strip()]
+            if len(rows) != count or any(not isinstance(row, dict) or not isinstance(row.get("full_prompt", row.get("prompt")), str) or not row.get("full_prompt", row.get("prompt", "")).strip() for row in rows):
+                raise MpwPromptError("MPW returned an incomplete or invalid prompt manifest")
+            # Publish only after a complete compile. Never delete an older manifest on failure.
+            compiled_path.replace(output)
+        except (OSError, ValueError, subprocess.TimeoutExpired) as exc:
+            raise MpwPromptError("MPW compilation failed or timed out; prior output preserved.") from exc
     return output
 
 

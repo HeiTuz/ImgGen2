@@ -31,6 +31,23 @@ class AlibabaTokenPlanTransportTests(unittest.TestCase):
         self.assertEqual(result["reference_count"], 1)
         self.assertEqual(result["input_role"], "identity_reference")
 
+    def test_same_prompt_repeated_runs_have_distinct_provenance(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root=Path(tmp); provider=FakeProvider(root/"cache.png")
+            first=transport.run("portrait",execute=True,run_root=root/"runs",provider=provider)
+            second=transport.run("portrait",execute=True,run_root=root/"runs",provider=provider)
+            self.assertNotEqual(first["run_id"],second["run_id"])
+            self.assertTrue(Path(first["provenance_path"]).is_file())
+            self.assertTrue(Path(second["provenance_path"]).is_file())
+
+    def test_provider_error_does_not_expose_raw_diagnostics(self):
+        class Broken:
+            def generate(self,*args,**kwargs): raise RuntimeError("secret sentinel")
+        with tempfile.TemporaryDirectory() as tmp:
+            with self.assertRaises(transport.TransportError) as caught:
+                transport.run("portrait",execute=True,run_root=Path(tmp),provider=Broken())
+            self.assertNotIn("secret sentinel",str(caught.exception))
+
     def test_rejects_local_reference(self):
         with self.assertRaisesRegex(transport.TransportError, "public HTTP"):
             transport.run("portrait", reference_url="/tmp/ref.png")

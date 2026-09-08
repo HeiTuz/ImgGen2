@@ -1,3 +1,4 @@
+from fixtures.png_fixture import png_bytes
 import importlib.util
 import json
 import os
@@ -45,7 +46,7 @@ class FakeRunner:
             if category:
                 raise batch.transport.TransportError(f"Codex CLI failed; category={category}")
             output.parent.mkdir(parents=True, exist_ok=True)
-            output.write_bytes(("png:" + prompt).encode())
+            output.write_bytes(png_bytes(seed=sum(prompt.encode())))
             return {"transport_state": "succeeded", "source_artifact": f"/session/{prompt}.png"}
         finally:
             with self.lock:
@@ -83,6 +84,73 @@ def complete_approved_batch(manifest, out, runner, **kwargs):
 
 
 class BatchManifestTests(unittest.TestCase):
+    def test_shared_references_are_hashed_once_per_load_with_unchanged_digest(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / "ref.png").write_bytes(b"shared reference")
+            manifest = root / "jobs.jsonl"
+            write_jsonl(manifest, [
+                {"id": f"j{i}", "prompt": "one", "output_path": f"{i}.png", "images": ["ref.png"]}
+                for i in range(100)
+            ])
+            with patch.object(batch, "file_digest", wraps=batch.file_digest) as digest:
+                jobs, actual_hash = batch.load_manifest(manifest, root / "out")
+                self.assertEqual(digest.call_count, 1)
+            old_serialization = "\n".join(batch.canonical_json(job.source_record) for job in jobs) + "\n"
+            self.assertEqual(actual_hash, batch._sha256_bytes(old_serialization.encode()))
+            (root / "ref.png").write_bytes(b"updated reference")
+            _, changed_hash = batch.load_manifest(manifest, root / "out")
+            self.assertNotEqual(actual_hash, changed_hash)
+
+    def test_reference_change_during_hash_is_rejected(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            ref = Path(tmp) / "ref.png"
+            ref.write_bytes(b"before")
+            digest = batch.file_digest
+
+            def changing_digest(path):
+                result = digest(path)
+                path.write_bytes(b"changed during hashing")
+                return result
+
+            with patch.object(batch, "file_digest", side_effect=changing_digest):
+                with self.assertRaisesRegex(batch.BatchError, "changed while hashing"):
+                    batch.ReferenceDigestCache().digest(ref)
+
+    def test_cached_reference_change_is_rejected_at_end_of_load(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            first, second = root / "first.png", root / "second.png"
+            first.write_bytes(b"first")
+            second.write_bytes(b"second")
+            manifest = root / "jobs.jsonl"
+            write_jsonl(manifest, [
+                {"id": "j", "prompt": "one", "output_path": "a.png", "images": [first.name, second.name]},
+            ])
+            digest = batch.file_digest
+
+            def changing_digest(path):
+                result = digest(path)
+                if path == second.resolve():
+                    first.write_bytes(b"changed after initial hash")
+                return result
+
+            with patch.object(batch, "file_digest", side_effect=changing_digest):
+                with self.assertRaisesRegex(batch.BatchError, "changed while loading"):
+                    batch.load_manifest(manifest, root / "out")
+
+    def test_jsonl_stream_preserves_line_diagnostics_and_empty_check(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "rows.jsonl"
+            path.write_text('\n{"id":"ok"}\n\ninvalid\n')
+            rows = batch._load_jsonl(path)
+            self.assertEqual(next(rows), (2, {"id": "ok"}))
+            with self.assertRaisesRegex(batch.BatchError, ":4:"):
+                next(rows)
+            path.write_text("\n  \n")
+            with self.assertRaisesRegex(batch.BatchError, "no records"):
+                list(batch._load_jsonl(path))
+
     def test_auto_qc_policy_targets_references_product_promo_and_explicit_review(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
@@ -238,6 +306,89 @@ class BatchManifestTests(unittest.TestCase):
 
 
 class BatchExecutionTests(unittest.TestCase):
+    def test_submission_window_is_bounded_for_large_batches(self):
+        class TrackingExecutor(batch.ThreadPoolExecutor):
+            peak = 0
+            outstanding = 0
+            counter_lock = threading.Lock()
+
+            def submit(self, fn, *args, **kwargs):
+                with self.counter_lock:
+                    self.outstanding += 1
+                    self.peak = max(self.peak, self.outstanding)
+                    if self.outstanding > self._max_workers:
+                        raise AssertionError("Unbounded executor queue")
+                future = super().submit(fn, *args, **kwargs)
+
+                def finished(_future):
+                    with self.counter_lock:
+                        self.outstanding -= 1
+
+                future.add_done_callback(finished)
+                return future
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            manifest, records = self.make_manifest(root, count=80)
+            for record in records:
+                record["qc_required"] = False
+            write_jsonl(manifest, records)
+            with patch.object(batch, "ThreadPoolExecutor", TrackingExecutor):
+                result = batch.run_batch(
+                    manifest, root / "out", execute=True, runner=FakeRunner(delay=0.002),
+                    workers="3", start=3,
+                )
+            self.assertEqual(result["counts"]["succeeded"], 80)
+
+    def test_shared_lane_failure_stops_dispatch_and_retry_preserves_success(self):
+        for category in sorted(batch.STOP_DISPATCH_CATEGORIES):
+            with self.subTest(category=category), tempfile.TemporaryDirectory() as tmp:
+                root = Path(tmp)
+                manifest, records = self.make_manifest(root, count=12)
+                for record in records:
+                    record["qc_required"] = False
+                write_jsonl(manifest, records)
+                out = root / "out"
+                runner = FakeRunner(failures={"p1": category})
+                result = batch.run_batch(
+                    manifest, out, execute=True, runner=runner,
+                    workers="4", start=1, ramp_every=100,
+                )
+                self.assertEqual(len(runner.calls), 2)
+                self.assertEqual(result["dispatch_stopped_reason"], category)
+                self.assertEqual(result["counts"]["succeeded"], 1)
+                self.assertEqual(result["counts"]["failed"], 1)
+                self.assertEqual(result["counts"]["pending"], 10)
+                self.assertTrue(all(item["attempts"] == 0 for item in result["items"][2:]))
+                original = (out / "0.png").read_bytes()
+                jobs, _ = batch.load_manifest(manifest, out)
+                retry = root / "retry.jsonl"
+                batch.write_retry_manifest(jobs, batch.load_ledger(out / batch.LEDGER_NAME), retry)
+                retry_rows = [row for _, row in batch._load_jsonl(retry)]
+                self.assertEqual(len(retry_rows), 11)
+                self.assertNotIn("j0", [row["id"] for row in retry_rows])
+                recovered = batch.run_batch(
+                    retry, out, execute=True, runner=FakeRunner(),
+                    ledger_path=out / "retry-ledger.json", workers="4",
+                )
+                self.assertEqual(recovered["counts"]["succeeded"], 11)
+                self.assertEqual((out / "0.png").read_bytes(), original)
+
+    def test_moderation_failure_does_not_stop_unrelated_jobs(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            manifest, records = self.make_manifest(root, count=5)
+            for record in records:
+                record["qc_required"] = False
+            write_jsonl(manifest, records)
+            result = batch.run_batch(
+                manifest, root / "out", execute=True,
+                runner=FakeRunner(failures={"p1": "moderation_rejected"}), workers="2",
+            )
+            self.assertEqual(result["counts"]["succeeded"], 4)
+            self.assertEqual(result["counts"]["failed"], 1)
+            self.assertIsNone(result["dispatch_stopped_reason"])
+
     def test_atomic_write_retries_windows_smb_sharing_violation(self):
         with tempfile.TemporaryDirectory() as tmp:
             target = Path(tmp) / "ledger.json"
@@ -328,6 +479,35 @@ class BatchExecutionTests(unittest.TestCase):
             self.assertFalse((root / "out").exists())
             with self.assertRaisesRegex(batch.BatchError, "hard_cap=2"):
                 batch.run_batch(manifest, root / "out", workers="3", hard_cap=2)
+
+    def test_faulty_runner_cannot_mark_garbage_as_success(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root=Path(tmp); manifest,_=self.make_manifest(root,1)
+            def faulty(prompt, output, images, **kwargs):
+                output.write_bytes(b"not PNG")
+                return {"transport_state":"succeeded"}
+            result=batch.run_batch(manifest,root/"out",execute=True,runner=faulty)
+            self.assertEqual(result["counts"]["failed"],1)
+            self.assertEqual(result["items"][0]["failure_category"],"invalid_artifact")
+            self.assertEqual(result["completion_state"],"incomplete")
+
+    def test_qc_hash_binds_to_pilot_and_summary_reports_next_action(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root=Path(tmp); manifest,_=self.make_manifest(root,1)
+            result=batch.run_batch(manifest,root/"out",execute=True,runner=FakeRunner())
+            self.assertEqual(result["completion_state"],"awaiting_pilot_qc")
+            self.assertEqual(result["next_action"],"review_pilot_and_apply_qc")
+            self.assertEqual(result["items"][0]["artifact"]["width"],2)
+            qc=root/"qc.jsonl"
+            row={"id":"j0","output_sha256":"wrong","axis_scores":{k:5 for k in ("goal_fit","text_accuracy","material_realism","layout")}}
+            write_jsonl(qc,[row])
+            with self.assertRaisesRegex(batch.BatchError,"hash mismatch"):
+                batch.reconcile_qc(manifest,root/"out",qc)
+            row["output_sha256"]=result["items"][0]["output_sha256"]
+            write_jsonl(qc,[row])
+            complete=batch.reconcile_qc(manifest,root/"out",qc)
+            self.assertEqual(complete["completion_state"],"complete")
+            self.assertEqual(complete["next_action"],"verify_delivery")
 
     def test_live_uses_manifest_provenance_without_env_ceremony(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -429,7 +609,7 @@ class BatchExecutionTests(unittest.TestCase):
             with self.assertRaisesRegex(batch.BatchError, "Execution config drift"):
                 self.raw_approved_run(manifest, root / "out", FakeRunner(), workers="1")
             (root / "out" / "1.png").write_bytes(b"tampered")
-            with self.assertRaisesRegex(batch.BatchError, "hash/size"):
+            with self.assertRaisesRegex(batch.BatchError, "hash/size|artifact invalid"):
                 self.approved_run(manifest, root / "out", FakeRunner(), workers="2")
 
     def test_unowned_existing_output_is_conflict(self):

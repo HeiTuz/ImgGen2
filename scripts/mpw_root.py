@@ -4,11 +4,12 @@
 must name a valid installation; an invalid override is an error. Without an
 override, Hermes, Claude, then Codex standard locations are checked in that
 order. A valid installation contains a ``SKILL.md`` declaring
-``name: MPW``. ``None`` means no installation was found; callers that
+``name: mpw`` (case-insensitive, including legacy ``MPW``). ``None`` means no installation was found; callers that
 need contract authority must additionally require its manifest.
 """
 
 import os
+import re
 from pathlib import Path
 
 
@@ -33,9 +34,17 @@ def is_mpw_installation(root: Path) -> bool:
     if not root.is_dir() or not skill.is_file():
         return False
     try:
-        return "name: MPW" in skill.read_text(encoding="utf-8")
-    except OSError:
+        text = skill.read_text(encoding="utf-8-sig")
+    except (OSError, UnicodeError):
         return False
+    frontmatter = re.match(r"\A---\n(.*?)\n---(?:\n|\Z)", text, re.DOTALL)
+    if frontmatter is None:
+        return False
+    name_lines = [line for line in frontmatter[1].splitlines() if line.startswith("name:")]
+    return len(name_lines) == 1 and bool(re.fullmatch(
+        r'''name:[ \t]*(?:mpw|"mpw"|'mpw')[ \t]*(?:#.*)?''',
+        name_lines[0], re.IGNORECASE,
+    ))
 
 
 def validate_mpw_root(root: Path, *, source: str) -> Path:

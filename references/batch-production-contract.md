@@ -20,7 +20,7 @@ The loader rejects duplicate IDs, duplicate normalized output ownership, absolut
 
 ## Dry-run and approval
 
-Dry-run is the default and calls no subprocess:
+Dry-run is the default. It probes the resolved Codex executable with `--version`, but makes no image-generation call:
 
 ```bash
 python scripts/codex_subscription_batch.py \
@@ -29,7 +29,7 @@ python scripts/codex_subscription_batch.py \
   --workers auto
 ```
 
-It prints `manifest_sha256` and `approval_sha256` as provenance. The canonical manifest digest includes normalized records, resolved reference paths, and each reference file's SHA-256/size. `approval_sha256` additionally binds `workers`, start, hard cap, ramp interval, and RAM estimate. An explicit user batch request authorizes this bounded scope; live execution uses `--execute` without copying the digest into an environment variable.
+It prints `manifest_sha256` and `approval_sha256` as provenance. The canonical manifest digest includes normalized records, resolved reference paths, and each reference file's SHA-256/size. JSONL parsing and digest serialization are incremental. Within one load, unchanged references share a cached digest; device, inode, size, modification time, and change time are checked before reuse and again at the end. A new load always rehashes the files, so resumed runs still detect changed reference content. Mutation during hashing or loading fails closed. `approval_sha256` additionally binds `workers`, start, hard cap, ramp interval, and RAM estimate. An explicit user batch request authorizes this bounded scope; live execution uses `--execute` without copying the digest into an environment variable.
 
 ```bash
 python scripts/codex_subscription_batch.py \
@@ -41,6 +41,8 @@ python scripts/codex_subscription_batch.py \
 
 Digests still detect drift. Failed or QC-failed items may be retried automatically inside the unchanged user-requested scope. Scope/count expansion, provider or paid-route changes, original overwrite, and external publication require a fresh user decision.
 
+For `creative_batch.py`, dry-run planning uses an isolated temporary directory. If a prior live workspace exists, its exact compiled manifest is copied into scratch for planning; existing images, ledger, and manifest remain untouched even when preflight fails. `workspace_retained` reports whether that prior workspace exists.
+
 ## Pilot and fan-out
 
 The first manifest record is always the transport pilot and runs alone. A pilot with references, product-photo metadata, promotional layout, or `qc_required: true` stops with `awaiting_pilot_qc: true`; independent four-axis QC must pass before a later invocation opens fan-out. A simple text-only pilot records `qc_status: skipped` and opens bounded fan-out in the same invocation. Transport failure still leaves remaining jobs pending and stops the pass.
@@ -50,7 +52,10 @@ After the pilot:
 - `--workers N` uses a bounded explicit target;
 - `--workers auto` uses available RAM, `--ram-per-worker-gb`, and `--hard-cap`;
 - concurrency starts at `--start` and grows by one after every `--ramp-every` healthy completions;
-- a `rate_limited` failure freezes further growth;
+- outstanding futures are bounded by the worker target, rather than the manifest length;
+- `rate_limited`, `authentication_required`, `entitlement_denied`, `model_unavailable`, `image_tool_unavailable`, and `cli_argument_error` stop new dispatch; active calls finish and unstarted jobs remain `pending` with no attempt recorded;
+- `dispatch_stopped_reason` in JSON summaries identifies the shared-lane failure;
+- per-cut failures, including moderation rejection, leave unrelated cuts eligible;
 - each job still invokes the existing session-provenance transport independently;
 - completion order never changes manifest-order summaries.
 

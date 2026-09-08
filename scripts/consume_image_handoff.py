@@ -12,7 +12,7 @@ from typing import Any, Sequence
 from urllib.parse import urlparse
 
 import codex_subscription_transport as transport
-from portable_paths import foreign_path_message
+from portable_paths import foreign_path_message, is_symlink_or_reparse
 
 SCHEMA_VERSION = "image-production-handoff/v2"
 JOB_ID_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$")
@@ -195,7 +195,15 @@ def consume_handoff(
     for image in handoff["input_images"]:
         if urlparse(image["path"]).scheme:
             raise HandoffError("input image URLs must be materialized as relative local files before execution")
-        image_paths.append((handoff_path.parent / image["path"]).resolve())
+        base = handoff_path.parent.resolve()
+        ref = base
+        for part in PurePosixPath(image["path"]).parts:
+            ref = ref / part
+            if is_symlink_or_reparse(ref):
+                raise HandoffError("input image path contains a symlink or reparse point")
+        if not ref.resolve().is_relative_to(base):
+            raise HandoffError("input image escapes handoff directory")
+        image_paths.append(ref.resolve())
     output = (output_root / handoff["output"]["filename"]).resolve()
     root = output_root.resolve()
     if output != root and root not in output.parents:

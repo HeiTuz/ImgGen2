@@ -1,3 +1,4 @@
+from fixtures.png_fixture import png_bytes
 import copy
 import importlib.util
 import json
@@ -84,7 +85,7 @@ class ApparelDynamicFullSetTests(unittest.TestCase):
                 path = folder_root / set_name / output["filename"]
                 if (set_name, output["id"]) in missing:
                     continue
-                path.write_bytes(f"{set_name}:{output['id']}".encode())
+                path.write_bytes(png_bytes(seed=sum(f"{set_name}:{output['id']}".encode())))
                 rows[output["id"]] = {
                     "state": "completed",
                     "filename": output["filename"],
@@ -139,6 +140,35 @@ class ApparelDynamicFullSetTests(unittest.TestCase):
         path = Path(coordinator["folder_root"]) / "vision-selector-report.json"
         path.write_text(json.dumps(report), encoding="utf-8")
         return path
+
+    def test_resume_rejects_changed_report_and_incomplete_provenance(self):
+        coordinator = self.prepare(("navy",))
+        self.populate_candidates(coordinator)
+        report = self.report(coordinator)
+        coordinator_path = Path(coordinator["folder_root"]) / "coordinator.json"
+        fullset.select_candidates(coordinator_path, report)
+        original = report.read_bytes()
+        report.write_bytes(original + b" ")
+        with self.assertRaisesRegex(fullset.ContractError, "identity mismatch"):
+            fullset.select_candidates(coordinator_path, report)
+        report.write_bytes(original)
+        provenance_path = Path(coordinator["selected_root"]) / "provenance.json"
+        provenance = fullset.read_json(provenance_path)
+        provenance["files"].pop()
+        provenance_path.write_text(json.dumps(provenance))
+        with self.assertRaisesRegex(fullset.ContractError, "inventory mismatch"):
+            fullset.select_candidates(coordinator_path, report)
+
+    def test_string_false_is_not_a_passing_vision_gate(self):
+        with self.assertRaisesRegex(fullset.ContractError, "booleans"):
+            fullset._candidate_quality({"source_fidelity": .9, "support_removal": "false",
+                "pure_white_no_shadow": True, "no_invented_detail": True})
+
+    def test_reversed_duplicate_similarity_is_rejected(self):
+        row = {"a_output":"a", "a_set":"1", "b_output":"b", "b_set":"2", "score":.9}
+        reverse = {"a_output":"b", "a_set":"2", "b_output":"a", "b_set":"1", "score":.95}
+        with self.assertRaisesRegex(fullset.ContractError, "duplicate"):
+            fullset._similarity_map({"similarities": [row, reverse]})
 
     def test_zero_one_and_four_color_task_count(self):
         zero = self.contract(("navy",))

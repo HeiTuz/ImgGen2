@@ -7,10 +7,12 @@ import hashlib
 import importlib.util
 import json
 import os
+import uuid
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 from urllib.parse import urlparse
+from portable_paths import is_symlink_or_reparse
 
 HERMES_HOME = Path(os.environ.get("HERMES_HOME", "~/.hermes")).expanduser().resolve()
 PLUGIN_PATH = HERMES_HOME / "plugins" / "alibaba-token-plan-media" / "__init__.py"
@@ -44,7 +46,7 @@ def validate(prompt: str, reference_url: str | None, model: str, aspect_ratio: s
         raise TransportError(f"Unsupported Wan model: {model}")
     if aspect_ratio not in {"landscape", "square", "portrait"}:
         raise TransportError(f"Unsupported aspect ratio: {aspect_ratio}")
-    if reference_url and urlparse(reference_url).scheme not in {"http", "https"}:
+    if reference_url and (urlparse(reference_url).scheme not in {"http", "https"} or not urlparse(reference_url).netloc or urlparse(reference_url).username is not None):
         raise TransportError("Wan reference input must be a public HTTP(S) URL")
 
 
@@ -64,21 +66,27 @@ def _load_provider():
 
 def run(prompt: str, *, reference_url: str | None = None, model: str = "wan2.7-image", aspect_ratio: str = "portrait", execute: bool = False, run_root: Path = DEFAULT_RUN_ROOT, provider: Any = None) -> dict[str, Any]:
     validate(prompt, reference_url, model, aspect_ratio)
-    run_id = f"wan-{datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%SZ')}-{_prompt_digest(prompt)[:8]}"
+    run_id = f"wan-{datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%SZ')}-{uuid.uuid4().hex}"
     if not execute:
         return {"transport_state": "dry_run", "run_id": run_id, "provider": "alibaba-token-plan", "model": model, "aspect_ratio": aspect_ratio, "reference_count": int(bool(reference_url)), "input_role": "identity_reference" if reference_url else "none", "prompt_digest": _prompt_digest(prompt), "hermes_native_config_touched": False}
     backend = provider or _load_provider()
+    run_dir = run_root.expanduser().resolve() / run_id
+    run_dir.mkdir(parents=True, exist_ok=False)
     # A QC retry is a fresh generation from the immutable original reference.
     # Never pass a prior output as image_url: that silently turns repair into
     # chained image editing and compounds visual damage.
-    result = backend.generate(prompt, aspect_ratio, reference_image_urls=[reference_url] if reference_url else None, model=model)
-    if not result.get("success"):
-        raise TransportError(str(result.get("error") or "Wan generation failed"))
-    artifact = Path(str(result["image"])).expanduser().resolve()
+    try:
+        result = backend.generate(prompt, aspect_ratio, reference_image_urls=[reference_url] if reference_url else None, model=model)
+    except Exception:
+        raise TransportError("Wan provider call failed; inspect provider diagnostics locally") from None
+    if not isinstance(result, dict) or result.get("success") is not True or not isinstance(result.get("image"), str):
+        raise TransportError("Wan provider did not return a successful image artifact")
+    artifact = Path(result["image"]).expanduser()
+    if is_symlink_or_reparse(artifact):
+        raise TransportError("Wan provider artifact must not be a symlink or reparse point")
+    artifact = artifact.resolve()
     if not artifact.is_file() or artifact.stat().st_size <= 0:
         raise TransportError("Wan provider returned a missing or empty artifact")
-    run_dir = run_root.expanduser().resolve() / run_id
-    run_dir.mkdir(parents=True, exist_ok=False)
     record = {"schema_version": 1, "run_id": run_id, "created_at": _now(), "transport": "imggen2-alibaba-token-plan", "provider": "alibaba-token-plan", "model": str(result.get("model") or model), "artifact_id": artifact.stem, "artifact_path": str(artifact), "artifact_sha256": _sha256(artifact), "artifact_bytes": artifact.stat().st_size, "prompt": prompt, "prompt_digest": _prompt_digest(prompt), "aspect_ratio": aspect_ratio, "reference_summary": {"count": int(bool(reference_url)), "input_kind": "public_https" if reference_url else "none", "input_role": "identity_reference" if reference_url else "none", "regeneration_parent_artifact_id": None}, "hermes_native_config_touched": False, "qc_status": "pending_review"}
     provenance = run_dir / "provenance.json"
     provenance.write_text(json.dumps(record, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")

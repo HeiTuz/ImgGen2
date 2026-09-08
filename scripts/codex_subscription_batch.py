@@ -20,16 +20,17 @@ except ImportError:  # pragma: no cover - exercised on Windows
 import hashlib
 import json
 import os
-from concurrent.futures import ThreadPoolExecutor, as_completed
+from concurrent.futures import FIRST_COMPLETED, ThreadPoolExecutor, wait
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 import re
 import threading
 import time
-from typing import Callable, Mapping, Sequence
+from typing import Callable, Iterator, Mapping, Sequence
 
 import codex_subscription_transport as transport
+from image_artifacts import ArtifactError, inspect_png
 from portable_paths import PathCompatibilityError, is_symlink_or_reparse, normalize_local_path
 
 
@@ -40,6 +41,11 @@ SUMMARY_MD_NAME = "batch-summary.md"
 SCHEMA_VERSION = 1
 VALID_STATUSES = {"pending", "running", "succeeded", "failed", "qc_failed", "skipped"}
 _ID_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$")
+# These failures affect the shared execution lane, rather than one image brief.
+STOP_DISPATCH_CATEGORIES = frozenset({
+    "rate_limited", "authentication_required", "entitlement_denied",
+    "model_unavailable", "image_tool_unavailable", "cli_argument_error",
+})
 
 
 class BatchError(RuntimeError):
@@ -69,6 +75,41 @@ def file_digest(path: Path) -> tuple[str, int]:
 
 def canonical_json(value: object) -> str:
     return json.dumps(value, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+
+
+class ReferenceDigestCache:
+    """One manifest load only: hash shared references once and detect mutation."""
+
+    def __init__(self):
+        self._entries: dict[Path, tuple[tuple[int, ...], tuple[str, int]]] = {}
+
+    @staticmethod
+    def _signature(path: Path) -> tuple[int, ...]:
+        try:
+            if is_symlink_or_reparse(path) or not path.is_file():
+                raise BatchError(f"Reference is no longer a regular file: {path}")
+            info = path.stat()
+        except OSError as exc:
+            raise BatchError(f"Reference could not be inspected: {path}") from exc
+        return (info.st_dev, info.st_ino, info.st_size, info.st_mtime_ns, info.st_ctime_ns)
+
+    def digest(self, path: Path) -> tuple[str, int]:
+        before = self._signature(path)
+        if path in self._entries:
+            signature, result = self._entries[path]
+            if signature != before:
+                raise BatchError(f"Reference changed while loading manifest: {path}")
+            return result
+        result = file_digest(path)
+        if before != self._signature(path):
+            raise BatchError(f"Reference changed while hashing manifest: {path}")
+        self._entries[path] = (before, result)
+        return result
+
+    def validate(self) -> None:
+        for path, (signature, _) in self._entries.items():
+            if signature != self._signature(path):
+                raise BatchError(f"Reference changed while loading manifest: {path}")
 
 
 @dataclass(frozen=True)
@@ -103,23 +144,24 @@ def _reject_symlink_components(root: Path, candidate: Path) -> None:
         raise BatchError(f"Output path is a symlink, junction, or reparse point: {candidate}")
 
 
-def _load_jsonl(path: Path) -> list[tuple[int, dict[str, object]]]:
+def _load_jsonl(path: Path) -> Iterator[tuple[int, dict[str, object]]]:
     if not path.is_file():
         raise BatchError(f"JSONL file does not exist: {path}")
-    rows: list[tuple[int, dict[str, object]]] = []
-    for line_number, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
-        if not line.strip():
-            continue
-        try:
-            value = json.loads(line)
-        except json.JSONDecodeError as exc:
-            raise BatchError(f"Invalid JSON at {path}:{line_number}: {exc.msg}") from None
-        if not isinstance(value, dict):
-            raise BatchError(f"JSONL record must be an object at {path}:{line_number}")
-        rows.append((line_number, value))
-    if not rows:
+    found = False
+    with path.open(encoding="utf-8") as stream:
+        for line_number, line in enumerate(stream, 1):
+            if not line.strip():
+                continue
+            try:
+                value = json.loads(line)
+            except json.JSONDecodeError as exc:
+                raise BatchError(f"Invalid JSON at {path}:{line_number}: {exc.msg}") from None
+            if not isinstance(value, dict):
+                raise BatchError(f"JSONL record must be an object at {path}:{line_number}")
+            found = True
+            yield line_number, value
+    if not found:
         raise BatchError(f"JSONL file has no records: {path}")
-    return rows
 
 
 def load_manifest(path: Path, output_root: Path) -> tuple[list[BatchJob], str]:
@@ -128,7 +170,8 @@ def load_manifest(path: Path, output_root: Path) -> tuple[list[BatchJob], str]:
     jobs: list[BatchJob] = []
     seen_ids: set[str] = set()
     seen_outputs: set[Path] = set()
-    canonical_records: list[dict[str, object]] = []
+    manifest_digest = hashlib.sha256()
+    references = ReferenceDigestCache()
     allowed = {
         "id", "prompt", "full_prompt", "output_path", "images", "promotional",
         "rendered_text_exists", "qc_required", "metadata", "series_locks", "retry_of", "retry_generation",
@@ -212,7 +255,7 @@ def load_manifest(path: Path, output_root: Path) -> tuple[list[BatchJob], str]:
         merged_metadata = dict(metadata)
         reference_evidence = []
         for ref in images:
-            digest, size = file_digest(ref)
+            digest, size = references.digest(ref)
             reference_evidence.append({"path": str(ref), "sha256": digest, "size": size})
         merged_metadata["reference_evidence"] = reference_evidence
         if series_locks:
@@ -231,7 +274,7 @@ def load_manifest(path: Path, output_root: Path) -> tuple[list[BatchJob], str]:
         normalized["qc_required"] = qc_required
         normalized["metadata"] = merged_metadata
         normalized.pop("series_locks", None)
-        canonical_records.append(normalized)
+        manifest_digest.update((canonical_json(normalized) + "\n").encode())
         jobs.append(BatchJob(
             id=job_id,
             prompt=prompt.strip(),
@@ -246,8 +289,8 @@ def load_manifest(path: Path, output_root: Path) -> tuple[list[BatchJob], str]:
         ))
         seen_ids.add(job_id)
         seen_outputs.add(output)
-    manifest_hash = _sha256_bytes(("\n".join(canonical_json(r) for r in canonical_records) + "\n").encode())
-    return jobs, manifest_hash
+    references.validate()
+    return jobs, manifest_digest.hexdigest()
 
 
 def _initial_job_state(job: BatchJob) -> dict[str, object]:
@@ -395,7 +438,11 @@ def recover_and_validate_ledger(
         if state["status"] in {"succeeded", "skipped", "qc_failed"}:
             if not job.output.is_file() or is_symlink_or_reparse(job.output):
                 raise BatchError(f"Resume evidence missing for {job.id}: output is absent or unsafe.")
-            digest, size = file_digest(job.output)
+            try:
+                artifact = inspect_png(job.output)
+            except ArtifactError as exc:
+                raise BatchError(f"Resume artifact invalid for {job.id}: {exc}") from exc
+            digest, size = artifact["sha256"], artifact["size"]
             if digest != state.get("output_sha256") or size != state.get("output_size"):
                 raise BatchError(f"Resume evidence mismatch for {job.id}: output hash/size changed.")
         elif job.output.exists():
@@ -454,6 +501,17 @@ class AdaptiveLimiter:
         self._lock = threading.Lock()
         self._healthy = 0
         self.throttled = False
+        self._stop_reason: str | None = None
+
+    @property
+    def stop_reason(self) -> str | None:
+        with self._lock:
+            return self._stop_reason
+
+    def stop(self, reason: str) -> None:
+        with self._lock:
+            if self._stop_reason is None:
+                self._stop_reason = reason
 
     def __enter__(self):
         self._semaphore.acquire()
@@ -479,6 +537,8 @@ class AdaptiveLimiter:
 
 
 def _failure_category(exc: Exception) -> str:
+    if isinstance(exc, ArtifactError):
+        return "invalid_artifact"
     text = str(exc)
     match = re.search(r"category=([a-z0-9_-]+)", text)
     if match:
@@ -508,6 +568,10 @@ def _run_one(
     states = ledger["jobs"]
     assert isinstance(states, dict)
     with limiter:
+        # Futures waiting for a ramp-up permit must not start another provider
+        # call after a shared-lane failure. Leave them pending for selective retry.
+        if limiter.stop_reason:
+            return job.id, "pending"
         with ledger_lock:
             state = states[job.id]
             assert isinstance(state, dict)
@@ -529,13 +593,15 @@ def _run_one(
             )
             if result.get("transport_state") != "succeeded":
                 raise BatchError("Transport did not report succeeded state.")
-            digest, size = file_digest(job.output)
+            artifact = inspect_png(job.output)
+            digest, size = artifact["sha256"], artifact["size"]
             with ledger_lock:
                 state = states[job.id]
                 state["status"] = "succeeded"
                 state["source_artifact"] = result.get("source_artifact")
                 state["output_sha256"] = digest
                 state["output_size"] = size
+                state["artifact"] = artifact
                 state["failure_category"] = None
                 state["updated_at"] = _now()
                 state["attempts"][-1].update({"status": "succeeded", "finished_at": _now(), "source_artifact": result.get("source_artifact")})
@@ -547,6 +613,8 @@ def _run_one(
             category = _failure_category(exc)
             if category == "rate_limited":
                 limiter.throttle()
+            if category in STOP_DISPATCH_CATEGORIES:
+                limiter.stop(category)
             with ledger_lock:
                 state = states[job.id]
                 state["status"] = "failed"
@@ -579,8 +647,26 @@ def build_summary(ledger: Mapping[str, object]) -> dict[str, object]:
             "failure_category": state.get("failure_category"),
             "qc_required": bool(state.get("qc_required")),
             "qc_status": qc_status,
+            "output_sha256": state.get("output_sha256"),
+            "artifact": state.get("artifact"),
         })
+    if ledger.get("awaiting_pilot_qc"):
+        completion_state, next_action = "awaiting_pilot_qc", "review_pilot_and_apply_qc"
+    elif counts.get("running"):
+        completion_state, next_action = "running", "wait_for_active_jobs"
+    elif counts.get("failed") or counts.get("qc_failed"):
+        completion_state, next_action = "incomplete", "resolve_failure_and_run_retry_manifest"
+    elif awaiting_qc:
+        completion_state, next_action = "awaiting_qc", "review_outputs_and_apply_qc"
+    elif counts.get("pending"):
+        completion_state, next_action = "pending", "resume_batch"
+    elif items:
+        completion_state, next_action = "complete", "verify_delivery"
+    else:
+        completion_state, next_action = "empty", "inspect_manifest"
     return {
+        "completion_state": completion_state,
+        "next_action": next_action,
         "manifest_sha256": ledger.get("manifest_sha256"),
         "codex_provenance": dict(
             ledger.get("config", {}).get("codex_provenance", {})
@@ -590,6 +676,7 @@ def build_summary(ledger: Mapping[str, object]) -> dict[str, object]:
         "pilot_id": ledger.get("pilot_id"),
         "awaiting_pilot_qc": bool(ledger.get("awaiting_pilot_qc")),
         "awaiting_qc": awaiting_qc,
+        "dispatch_stopped_reason": ledger.get("dispatch_stopped_reason"),
         "counts": counts,
         "items": items,
     }
@@ -747,22 +834,34 @@ def run_batch(
             target = resolve_worker_target(len(pending), workers, hard_cap, ram_per_worker_gb)
             limiter = AdaptiveLimiter(target, start, ramp_every)
             with ThreadPoolExecutor(max_workers=target) as pool:
-                futures = [
-                    pool.submit(
-                        _run_one,
-                        job,
-                        ledger,
-                        ledger_path,
-                        ledger_lock,
-                        limiter,
-                        runner,
-                        resolved_codex.command,
-                        codex_provenance,
-                    )
-                    for job in pending
-                ]
-                for future in as_completed(futures):
-                    future.result()
+                remaining = iter(pending)
+                futures = set()
+                exhausted = False
+                try:
+                    while futures or not exhausted:
+                        while not exhausted and not limiter.stop_reason and len(futures) < target:
+                            job = next(remaining, None)
+                            if job is None:
+                                exhausted = True
+                                break
+                            futures.add(pool.submit(
+                                _run_one, job, ledger, ledger_path, ledger_lock,
+                                limiter, runner, resolved_codex.command, codex_provenance,
+                            ))
+                        if not futures:
+                            break
+                        completed, futures = wait(futures, return_when=FIRST_COMPLETED)
+                        for future in completed:
+                            future.result()
+                except BaseException:
+                    limiter.stop("interrupted")
+                    for future in futures:
+                        future.cancel()
+                    raise
+            if limiter.stop_reason:
+                ledger["dispatch_stopped_reason"] = limiter.stop_reason
+                ledger["updated_at"] = _now()
+                atomic_write_json(ledger_path, ledger)
         finally:
             pass
         return write_summaries(output_root, ledger, ledger_path)
@@ -804,6 +903,8 @@ def reconcile_qc(
             if state["status"] not in {"succeeded", "qc_failed", "skipped"}:
                 raise BatchError(f"Cannot apply QC to non-succeeded job {job.id}")
             record = records[job.id]
+            if "output_sha256" in record and record["output_sha256"] != state.get("output_sha256"):
+                raise BatchError(f"QC artifact hash mismatch for {job.id}")
             scores = record.get("axis_scores")
             rendered = record.get("rendered_text_exists", job.rendered_text_exists)
             if not isinstance(scores, dict):

@@ -40,6 +40,11 @@ try {
   const legacyMpw = path.join(migrationRenameHome, ".hermes", "skills", "prompt-writing", "HeiTuzMPW");
   fs.mkdirSync(legacyConfig, { recursive: true }); fs.writeFileSync(path.join(legacyConfig, "installation.json"), "{}");
   fs.mkdirSync(legacyImg, { recursive: true }); fs.mkdirSync(legacyMpw, { recursive: true });
+  const planned = migrateLegacyInstallPaths(migrationRenameHome, { windows: false, config: path.join(process.env.XDG_CONFIG_HOME, "imggen") }, { dryRun: true });
+  assert.equal(planned.length, 3);
+  assert.equal(fs.existsSync(legacyImg), true);
+  assert.equal(fs.existsSync(legacyConfig), true);
+  assert.equal(fs.existsSync(path.join(migrationRenameHome, ".hermes", "skills", "ImgGen2")), false);
   const renamed = migrateLegacyInstallPaths(migrationRenameHome, { windows: false, config: path.join(process.env.XDG_CONFIG_HOME, "imggen") });
   assert.equal(renamed.length, 3);
   assert.equal(fs.existsSync(path.join(process.env.XDG_CONFIG_HOME, "imggen", "installation.json")), true);
@@ -48,9 +53,9 @@ try {
   if (previousXdg === undefined) delete process.env.XDG_CONFIG_HOME; else process.env.XDG_CONFIG_HOME = previousXdg;
   const updateManifest = { imggen2_target: "/tmp/imggen", vision_qc_requested: "auto" };
   const interactiveUpdate = imggenUpdateArgs(updateManifest, { interactive: true });
-  assert.deepEqual(interactiveUpdate.slice(-2), ["--vision-qc", "auto"]);
+  assert.equal(interactiveUpdate.includes("--vision-qc"), false);
   const automatedUpdate = imggenUpdateArgs(updateManifest, { interactive: false });
-  assert.deepEqual(automatedUpdate.slice(-2), ["--vision-qc", "auto"]);
+  assert.equal(automatedUpdate.includes("--vision-qc"), false);
   // Windows cannot spawn npx.cmd without a shell; the invocation must route through cmd.exe /c.
   assert.deepEqual(npxInvocation(true, ["--yes", "pkg"]), { command: "cmd.exe", args: ["/d", "/s", "/c", "npx", "--yes", "pkg"] });
   assert.deepEqual(npxInvocation(false, ["--yes", "pkg"]), { command: "npx", args: ["--yes", "pkg"] });
@@ -185,7 +190,7 @@ try {
     : invoke(cliArgs, { HEITUZ_TEST_PLATFORM: "linux" }, launcher);
   const updater = invokeInstalled(["update", "--dry-run"]);
   assert.match(updater, /ImgGen2 update/);
-  assert.match(updater, /--vision-qc.*auto/);
+  assert.doesNotMatch(updater, /--vision-qc/);
   assert.match(updater, /MPW update/);
   assert.equal(updater.includes(os.homedir()), false, "update dry-run leaked the developer home directory");
   const visionQcSetup = invokeInstalled(["vision-qc", "setup"]);
@@ -290,10 +295,18 @@ try {
     env: { ...process.env, HOME: migrationHome, USERPROFILE: migrationHome, XDG_CONFIG_HOME: path.join(migrationHome, "config"), HEITUZ_TEST_PLATFORM: "linux" },
   });
   assert.notEqual(migration.status, 0, "migration status remains degraded until launchers exist");
-  assert.equal(JSON.parse(fs.readFileSync(migrationManifest, "utf8")).version, 2);
+  assert.equal(JSON.parse(fs.readFileSync(migrationManifest, "utf8")).version, 1, "status must not rewrite the manifest");
   assert.deepEqual(fs.readdirSync(migrationConfig).filter((name) => name.includes(".tmp-")), []);
   assert.equal(fs.existsSync(path.join(appData, "ImgGen2", "installation.json")), true);
   assert.deepEqual(JSON.parse(fs.readFileSync(path.join(windowsTarget, "vision-qc.json"), "utf8")), { version: 2, requested_mode: "off", qc_mode: "off", reviewer: "host-default-vision" });
+  const savedQc = path.join(windowsTarget, "vision-qc.json");
+  const preserved = JSON.parse(invoke(["scripts/install.mjs", "--agent", "hermes", "--target", windowsTarget, "--offline", "--force", "--no-register", "--dry-run"]));
+  assert.equal(preserved.vision_qc.mode, "off");
+  assert.equal(preserved.installs[0].vision_qc.mode, "off");
+  invoke(["scripts/install.mjs", "--agent", "hermes", "--target", windowsTarget, "--offline", "--force", "--no-register"]);
+  assert.equal(JSON.parse(fs.readFileSync(savedQc, "utf8")).qc_mode, "off");
+  invoke(["scripts/install.mjs", "--agent", "hermes", "--target", windowsTarget, "--offline", "--force", "--no-register", "--vision-qc", "auto"]);
+  assert.equal(JSON.parse(fs.readFileSync(savedQc, "utf8")).qc_mode, "auto");
   console.log("unified install/update dry-run: OK");
 } finally {
   fs.rmSync(temp, { recursive: true, force: true });

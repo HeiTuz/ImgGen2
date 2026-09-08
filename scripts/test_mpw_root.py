@@ -10,6 +10,27 @@ import mpw_root
 
 
 class MpwRootTests(unittest.TestCase):
+    def test_current_lowercase_and_legacy_names_are_supported(self):
+        for name in ("mpw", "MPW", '"mpw"', "'MPW'", "mpw # canonical name"):
+            with self.subTest(name=name), tempfile.TemporaryDirectory() as tmp:
+                root = Path(tmp)
+                (root / "SKILL.md").write_text(f"---\nname: {name}\n---\n")
+                self.assertTrue(mpw_root.is_mpw_installation(root))
+
+    def test_body_mentions_and_other_skill_names_do_not_qualify(self):
+        invalid = (
+            "---\nname: other\n---\nExample: name: MPW\n",
+            "---\nname: MPW-other\n---\n",
+            "---\nmetadata:\n  name: MPW\n---\n",
+            "---\nname: mpw\nname: other\n---\n",
+            "name: MPW\n",
+        )
+        for text in invalid:
+            with self.subTest(text=text), tempfile.TemporaryDirectory() as tmp:
+                root = Path(tmp)
+                (root / "SKILL.md").write_text(text)
+                self.assertFalse(mpw_root.is_mpw_installation(root))
+
     def make_install(self, root: Path) -> Path:
         root.mkdir()
         (root / "SKILL.md").write_text("---\nname: MPW\n---\n", encoding="utf-8")

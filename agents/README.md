@@ -24,19 +24,11 @@ installed payload = canonical allowlisted tree + agents/<host>/ overlay (same-na
 
 A survey of five comparable public multi-agent skill/installer repositories (oh-my-hermes, tw93/Waza, higgsfield-skills, god-tibo-imagen, master-prompt-writer) found **no stronger public convention** for distributing per-host payload variants: all of them ship a single canonical payload, at most adding root-level instruction files (`AGENTS.md`, `CLAUDE.md`, `INSTALL_FOR_AGENTS.md`). Since the `AGENTS.md` standard makes "agents" the de-facto name for agent instruction surfaces, `agents/<host>/` is the most self-describing umbrella that does not collide with existing roots. MPW uses the identical convention.
 
-## Release gate — mandatory before ending any rule-changing session
+## Local installation and public release
 
-Installed trees (e.g. `~/.hermes/skills/ImgGen2`) are build artifacts of this repository. Local green is not deployment.
+Installed trees are generated artifacts. Edit the canonical source, synchronize host overlays, run `npm test`, regenerate the intended installations, and verify their payloads. Leave the required handoff and state whether changes are uncommitted. Local installation verification can complete without a public release.
 
-1. **Rollback hazard**: `imggen update` reinstalls both ImgGen2 and MPW from GitHub. Any local improvement that has not been pushed is silently replaced by the older published version on the next update. On 2026-07-16 an entire release of in-place install-tree edits was found undeployed this way; consumer-side fallbacks can make the regression look healthy.
-2. **Version parity check (mandatory)**: before ending the session, verify the remote version matches the local SKILL.md/package.json:
-
-   ```sh
-   curl -s https://raw.githubusercontent.com/ImgGen2/ImgGen2/main/package.json | python3 -c "import json,sys; print(json.load(sys.stdin)['version'])"
-   ```
-
-   A mismatch means the work is undeployed and the session cannot be closed.
-3. **Upstream procedure**: apply install-tree edits to this repository (never edit the artifact and stop there), re-sync host overlay bodies per the sync rule below, run `npm test` to exit 0, commit in English, push, and confirm CI green on all three OS jobs.
+Version bumps, pushes, and release publication need separate authorization under the root AGENTS.md. An upstream `imggen update` can replace unpublished local changes; preserve the canonical diff and handoff. When a release is authorized, verify the published version, installer, CI, and advertised live route before claiming release completion.
 
 ## Sync rule (drift prevention)
 

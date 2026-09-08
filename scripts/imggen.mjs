@@ -235,9 +235,8 @@ export function imggenUpdateArgs(manifest, { interactive }) {
   const args = ["--yes", IMGGEN_REPO, "--"];
   if (manifest.agent_host) args.push("--agent", manifest.agent_host);
   args.push("--target", manifest.imggen2_target, "--mpw-target", manifest.mpw_target, "--force", "--skip-mpw", "--skip-codex", "--no-register");
-  const previous = manifest.vision_qc_requested || manifest.vision_qc_mode;
-  const visionQc = previous === "off" ? "off" : "auto";
-  args.push("--vision-qc", visionQc);
+  // The installed per-host config owns its saved preference. Passing a
+  // top-level manifest default here would overwrite another host's setting.
   return args;
 }
 
@@ -284,7 +283,7 @@ function main(argv) {
   if (!fs.existsSync(manifest)) throw new Error(`HeiTuz installation manifest is missing: ${manifest}`);
   const original = JSON.parse(fs.readFileSync(manifest, "utf8"));
   const data = repairLegacyManifest(original);
-  if (data !== original) writeJsonAtomic(manifest, data);
+  if (data !== original && command === "update" && !flags.has("--dry-run")) writeJsonAtomic(manifest, data);
   assertPersistentTargets(data);
   if (command === "status") {
     const health = installationHealth(data, loc);

@@ -20,6 +20,8 @@ import unicodedata
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Iterable
+from portable_paths import is_symlink_or_reparse
+from image_artifacts import ArtifactError, inspect_png
 
 SCHEMA_VERSION = 1
 MIN_FAMILY_SIMILARITY = 0.80
@@ -459,7 +461,10 @@ def _candidate_quality(entry: dict[str, Any]) -> tuple[float, bool]:
         raise ContractError("Vision candidate assessment needs numeric source_fidelity") from exc
     if not 0 <= fidelity <= 1:
         raise ContractError("source_fidelity must be in [0,1]")
-    gates = all(bool(entry.get(k)) for k in ("support_removal", "pure_white_no_shadow", "no_invented_detail"))
+    gate_values = [entry.get(k) for k in ("support_removal", "pure_white_no_shadow", "no_invented_detail")]
+    if any(type(value) is not bool for value in gate_values):
+        raise ContractError("Vision candidate gates must be JSON booleans")
+    gates = all(gate_values)
     return fidelity, gates
 
 
@@ -473,28 +478,40 @@ def _similarity_map(report: dict[str, Any]) -> dict[tuple[str, str, str, str], f
             raise ContractError("invalid Vision similarity row") from exc
         if not 0 <= score <= 1:
             raise ContractError("similarity score must be in [0,1]")
+        if key in result:
+            raise ContractError("duplicate or reversed Vision similarity pair")
         result[key] = score
         result[(key[2], key[3], key[0], key[1])] = score
     return result
 
 
-def _resume_selected(selected_root: Path, outputs: list[dict[str, str]], selection_mode: str) -> dict[str, Any] | None:
+def _resume_selected(selected_root: Path, outputs: list[dict[str, str]], selection_mode: str, coordinator: dict[str, Any], report_sha256: str) -> dict[str, Any] | None:
     provenance_path = selected_root / "provenance.json"
     if not selected_root.exists():
         return None
-    if not provenance_path.is_file():
+    if is_symlink_or_reparse(selected_root) or is_symlink_or_reparse(provenance_path) or not provenance_path.is_file():
         raise ContractError("selected/ exists without provenance; refusing overwrite")
     provenance = read_json(provenance_path)
+    if (provenance.get("schema_version") != SCHEMA_VERSION
+        or provenance.get("folder_id") != coordinator["folder_id"]
+        or provenance.get("shared_contract_sha256") != coordinator["shared_contract_sha256"]
+        or provenance.get("vision_report_sha256") != report_sha256):
+        raise ContractError("selected resume provenance identity mismatch; refusing overwrite")
     recorded_mode = provenance.get("selection")
     if recorded_mode != selection_mode:
         raise ContractError(
             f"selected/ exists with selection mode {recorded_mode!r} but {selection_mode!r} was requested; refusing overwrite"
         )
-    by_id = {r["output_id"]: r for r in provenance.get("files", [])}
+    rows = provenance.get("files", [])
+    if not isinstance(rows, list) or any(not isinstance(r, dict) for r in rows):
+        raise ContractError("selected resume inventory is invalid")
+    by_id = {r.get("output_id"): r for r in rows}
+    if len(rows) != len(outputs) or set(by_id) != {o["id"] for o in outputs}:
+        raise ContractError("selected resume inventory mismatch")
     for output in outputs:
         target = selected_root / output["filename"]
         row = by_id.get(output["id"])
-        if not target.is_file() or not row or row.get("selected_sha256") != sha256_file(target):
+        if is_symlink_or_reparse(target) or not target.is_file() or not row or row.get("filename") != output["filename"] or row.get("selected_sha256") != sha256_file(target):
             raise ContractError("selected resume verification failed; refusing overwrite")
     provenance["resume_verified"] = True
     return provenance
@@ -515,7 +532,7 @@ def _verified_candidate_outputs(
     for task_number, set_name in enumerate(candidate_sets, start=1):
         candidate_root = folder_root / set_name
         ledger_path = candidate_root / "task-ledger.json"
-        if not ledger_path.is_file() or ledger_path.is_symlink():
+        if is_symlink_or_reparse(candidate_root) or not ledger_path.is_file() or is_symlink_or_reparse(ledger_path):
             raise ContractError(f"candidate task ledger missing for {set_name}")
         ledger = read_json(ledger_path)
         if not isinstance(ledger, dict):
@@ -544,11 +561,17 @@ def _verified_candidate_outputs(
                 or isinstance(row.get("size"), bool)
                 or not isinstance(row.get("size"), int)
                 or not source.is_file()
-                or source.is_symlink()
+                or is_symlink_or_reparse(source)
                 or source.stat().st_size != row["size"]
                 or sha256_file(source) != row["sha256"]
             ):
                 raise ContractError(f"candidate output is not ledger-verified for {set_name}/{output['id']}")
+            try:
+                artifact = inspect_png(source)
+            except ArtifactError as exc:
+                raise ContractError(f"candidate PNG invalid for {set_name}/{output['id']}: {exc}") from exc
+            if artifact["sha256"] != row["sha256"] or artifact["size"] != row["size"]:
+                raise ContractError("candidate changed during artifact validation")
             set_outputs[output["id"]] = {"path": source, "sha256": row["sha256"], "size": row["size"]}
         verified[set_name] = set_outputs
     return verified
@@ -681,9 +704,13 @@ def select_candidates(
     candidate_sets = _coordinator_candidate_sets(coordinator, shared)
     outputs = shared["outputs"]
     report = read_json(report_path)
+    if sha256_bytes(_canonical(shared)) != coordinator.get("shared_contract_sha256"):
+        raise ContractError("shared folder contract does not match coordinator hash")
+    if report.get("shared_contract_sha256") != coordinator["shared_contract_sha256"]:
+        raise ContractError("Vision report is not bound to this shared folder contract")
     effective_mode = _effective_selection_mode(shared, report, selection_mode)
     selected_root = folder_root / "selected"
-    resumed = _resume_selected(selected_root, outputs, effective_mode)
+    resumed = _resume_selected(selected_root, outputs, effective_mode, coordinator, sha256_file(report_path))
     if resumed is not None:
         return resumed
     verified_candidates = _verified_candidate_outputs(folder_root, coordinator, shared, candidate_sets)

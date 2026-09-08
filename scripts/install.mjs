@@ -275,18 +275,19 @@ function configureVisionQc(destination, selection) {
   return config;
 }
 
-function migrateLegacyPath(from, to, label) {
+function migrateLegacyPath(from, to, label, dryRun = false) {
   if (!fs.existsSync(from)) return false;
   if (path.resolve(from) === path.resolve(to)) return false;
   if (fs.existsSync(to)) {
     throw new Error(`Legacy ${label} exists at ${from}, but the new destination already exists at ${to}; reconcile the two explicitly instead of overwriting either.`);
   }
+  if (dryRun) return true;
   fs.mkdirSync(path.dirname(to), { recursive: true });
   fs.renameSync(from, to);
   return true;
 }
 
-export function migrateLegacyInstallPaths(home, loc) {
+export function migrateLegacyInstallPaths(home, loc, { dryRun = false } = {}) {
   const legacyConfig = loc.windows
     ? path.join(process.env.APPDATA || path.join(home, "AppData", "Roaming"), "HeiTuz")
     : path.join(process.env.XDG_CONFIG_HOME || path.join(home, ".config"), "heituz");
@@ -299,7 +300,15 @@ export function migrateLegacyInstallPaths(home, loc) {
     [legacyImgGenLower, path.join(home, ".hermes", "skills", "ImgGen2"), "ImgGen2 skill"],
     [legacyMpw, path.join(home, ".hermes", "skills", "prompt-writing", "MPW"), "MPW skill"],
   ];
-  return moves.filter(([from, to, label]) => migrateLegacyPath(from, to, label)).map(([from, to]) => ({ from, to }));
+  const seen = new Set();
+  return moves.filter(([from, to, label]) => {
+    if (!fs.existsSync(from)) return false;
+    const info = fs.statSync(from);
+    const identity = `${info.dev}:${info.ino}`;
+    if (seen.has(identity)) return false;
+    seen.add(identity);
+    return migrateLegacyPath(from, to, label, dryRun);
+  }).map(([from, to]) => ({ from, to }));
 }
 
 
@@ -437,7 +446,7 @@ export function installPlansTransaction(plans, visionQc, { sourceRoot = source }
       const payload = path.join(stageRoot, "payload");
       staged.push({ ...plan, stageRoot, payload });
       installPayload({ sourceRoot, destination: payload, host: plan.host });
-      configureVisionQc(payload, visionQc);
+      configureVisionQc(payload, plan.visionQc || visionQc);
       if (fs.existsSync(plan.destination)) preserveLocalOverlays(plan.destination, payload);
     }
     const applied = [];
@@ -477,11 +486,23 @@ export async function main(argv = args) {
   const helper = await import(pathToFileURL(path.join(source, "scripts", "imggen.mjs")).href);
   delete process.env.HEITUZ_INSTALLER_IMPORT;
   const loc = helper.locations();
-  const migratedLegacyPaths = migrateLegacyInstallPaths(loc.home, loc);
+  const migratedLegacyPaths = migrateLegacyInstallPaths(loc.home, loc, { dryRun: options.dryRun });
   ensurePillow(loc, options);
   const plans = await resolveInstallPlans(options, loc.home);
   const primary = plans[0];
   const visionQc = await selectVisionQc(options);
+  for (const plan of plans) {
+    plan.visionQc = visionQc;
+    const migration = options.dryRun && migratedLegacyPaths.find((move) => path.resolve(move.to) === path.resolve(plan.destination));
+    const previous = path.join(migration ? migration.from : plan.destination, "vision-qc.json");
+    if (!options.visionQcExplicit && fs.existsSync(previous)) {
+      let saved;
+      try { saved = JSON.parse(fs.readFileSync(previous, "utf8")); }
+      catch { throw new Error(`Cannot read existing QC config: ${previous}; use --vision-qc auto or --vision-qc off to explicitly repair it.`); }
+      if (!VISION_QC_MODES.has(saved.qc_mode)) throw new Error(`Invalid existing QC config: ${previous}`);
+      plan.visionQc = { requested: VISION_QC_MODES.has(saved.requested_mode) ? saved.requested_mode : saved.qc_mode, effective: saved.qc_mode };
+    }
+  }
   const register = options.register ?? !options.offline;
 
   if (options.dryRun) {
@@ -491,6 +512,7 @@ export async function main(argv = args) {
         agent: plan.host,
         imggen2_target: plan.destination,
         mpw_target: plan.mpwTarget,
+        vision_qc: { requested_mode: plan.visionQc.requested, mode: plan.visionQc.effective },
       })),
       imggen2_target: primary.destination,
       mpw_target: primary.mpwTarget,
@@ -499,8 +521,8 @@ export async function main(argv = args) {
       register,
       migrated_legacy_paths: migratedLegacyPaths,
       vision_qc: {
-        requested_mode: visionQc.requested,
-        mode: visionQc.effective,
+        requested_mode: primary.visionQc.requested,
+        mode: primary.visionQc.effective,
         config: path.join(primary.destination, "vision-qc.json"),
       },
     }, null, 2));
@@ -514,6 +536,7 @@ export async function main(argv = args) {
         agent_host: plan.host,
         imggen2_target: plan.destination,
         mpw_target: plan.mpwTarget,
+        vision_qc: { requested_mode: plan.visionQc.requested, mode: plan.visionQc.effective },
       })),
     }, { windows: loc.windows });
   }
@@ -548,14 +571,16 @@ export async function main(argv = args) {
     mpw_target: primary.mpwTarget,
     imggen2_repo: "github:HeiTuz/ImgGen2",
     mpw_repo: "github:HeiTuz/MPW",
-    vision_qc_requested: visionQc.requested,
-    vision_qc_mode: visionQc.effective,
+    vision_qc_requested: primary.visionQc.requested,
+    vision_qc_mode: primary.visionQc.effective,
     vision_qc_config: visionQcConfigs[0],
     installations: plans.map((plan, index) => ({
       agent_host: plan.host,
       imggen2_target: plan.destination,
       mpw_target: plan.mpwTarget,
       vision_qc_config: visionQcConfigs[index],
+      vision_qc_requested: plan.visionQc.requested,
+      vision_qc_mode: plan.visionQc.effective,
     })),
   }, null, 2) + "\n", { mode: 0o600 });
   fs.mkdirSync(loc.bin, { recursive: true });

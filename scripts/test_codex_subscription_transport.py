@@ -1,3 +1,4 @@
+from fixtures.png_fixture import png_bytes
 import importlib.util
 import sys
 from types import SimpleNamespace
@@ -20,6 +21,24 @@ SPEC.loader.exec_module(transport)
 
 
 class CodexSubscriptionTransportTests(unittest.TestCase):
+    def test_bare_http_429_is_classified_for_batch_admission_control(self):
+        for error in ("HTTP 429", '{"status":429}', "429", "status code: 429"):
+            with self.subTest(error=error):
+                self.assertEqual(transport.classify_cli_failure("", error), "rate_limited")
+        self.assertEqual(transport.classify_cli_failure("", "unrelated 14290"), "unknown_cli_failure")
+
+    def test_worker_receives_no_stdin_and_must_leave_artifact_collection_to_parent(self):
+        completed = transport.subprocess.CompletedProcess([], 1, stdout="", stderr="HTTP 429")
+        with tempfile.TemporaryDirectory() as tmp, patch.object(
+            transport, "resolve_codex_command", return_value=self._resolved(),
+        ), patch.object(transport.subprocess, "run", return_value=completed) as run:
+            with self.assertRaisesRegex(transport.TransportError, "category=rate_limited"):
+                transport.run("draw", Path(tmp) / "out.png", [], execute=True)
+            self.assertEqual(run.call_args.kwargs["stdin"], transport.subprocess.DEVNULL)
+            instruction = run.call_args.args[0][-1]
+            self.assertIn("end your turn without running shell commands", instruction)
+            self.assertIn("parent runner will collect the artifact", instruction)
+
     CURRENT_SESSION = "-".join(("019f5670", "ef96", "7530", "8c39", "962ed2b739a1"))
     PRIOR_SESSION = "-".join(("119f5670", "ef96", "7530", "8c39", "962ed2b739a1"))
     OTHER_SESSION = "-".join(("219f5670", "ef96", "7530", "8c39", "962ed2b739a1"))
@@ -366,11 +385,24 @@ class CodexSubscriptionTransportTests(unittest.TestCase):
                     create_artifacts,
                 )
 
+    def test_live_rejects_ambiguous_or_invalid_artifact(self):
+        for multiple in (True, False):
+            def create_artifacts(root):
+                current = root / self.CURRENT_SESSION
+                current.mkdir(parents=True)
+                (current / "first.png").write_bytes(png_bytes() if multiple else b"garbage")
+                if multiple: (current / "second.png").write_bytes(png_bytes(seed=1))
+            with self.subTest(multiple=multiple), tempfile.TemporaryDirectory() as tmp:
+                category = "ambiguous_artifact" if multiple else "invalid_artifact"
+                with self.assertRaisesRegex(transport.TransportError, category):
+                    self._run_live_with_artifacts(tmp, f'{{"thread_id":"{self.CURRENT_SESSION}"}}', create_artifacts)
+                self.assertFalse((Path(tmp) / "out.png").exists())
+
     def test_live_copies_current_session_artifact_with_provenance(self):
         def create_artifacts(root):
             current = root / self.CURRENT_SESSION
             current.mkdir(parents=True)
-            (current / "current.png").write_bytes(b"current session")
+            (current / "current.png").write_bytes(png_bytes())
 
         with tempfile.TemporaryDirectory() as tmp:
             result = self._run_live_with_artifacts(
@@ -384,7 +416,7 @@ class CodexSubscriptionTransportTests(unittest.TestCase):
             self.assertEqual(result["transport_state"], "succeeded")
             self.assertEqual(result["qc_status"], "not_evaluated")
             self.assertEqual(result["source_artifact"], str(source))
-            self.assertEqual((Path(tmp) / "out.png").read_bytes(), b"current session")
+            self.assertEqual((Path(tmp) / "out.png").read_bytes(), png_bytes())
 
     def test_live_rejects_artifact_when_cli_exit_is_nonzero(self):
         def create_artifacts(root):

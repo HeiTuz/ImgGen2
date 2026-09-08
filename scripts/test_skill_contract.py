@@ -15,9 +15,17 @@ assert SPEC.loader is not None
 SPEC.loader.exec_module(transport)
 
 
+def skill_text():
+    entry = (SKILL_ROOT / "SKILL.md").read_text(encoding="utf-8")
+    manual = SKILL_ROOT / "references" / "production-workflows.md"
+    if "references/production-workflows.md" not in entry:
+        raise AssertionError("Detailed workflows must be reachable from the entry skill")
+    return entry + "\n" + manual.read_text(encoding="utf-8")
+
+
 class SkillContractTests(unittest.TestCase):
     def test_auto_vision_qc_is_risk_based_not_always_on(self):
-        skill = (SKILL_ROOT / "SKILL.md").read_text(encoding="utf-8")
+        skill = skill_text()
         self.assertIn("`auto` is risk-based, not always-on", skill)
         self.assertIn("simple_text_only", skill)
         self.assertIn("skip Vision analysis and regeneration", skill)
@@ -83,7 +91,7 @@ class SkillContractTests(unittest.TestCase):
                 transport.run("generate", Path(tmp) / "missing.png", [], execute=True)
 
     def test_model_label_and_file_delivery_rules_are_explicit(self):
-        skill = (SKILL_ROOT / "SKILL.md").read_text(encoding="utf-8")
+        skill = skill_text()
         contract = (SKILL_ROOT / "references" / "execution-contract.md").read_text(encoding="utf-8")
         combined = (skill + "\n" + contract).lower()
         self.assertIn("model_identity_attested", combined)
@@ -93,13 +101,13 @@ class SkillContractTests(unittest.TestCase):
         self.assertIn("printing the path is not", combined)
 
     def test_prohibited_fallbacks_are_documented(self):
-        text = (SKILL_ROOT / "SKILL.md").read_text(encoding="utf-8").lower()
+        text = skill_text().lower()
         for boundary in ("api-key billing", "private endpoints", "dom automation", "cookie extraction"):
             self.assertIn(boundary, text)
         self.assertIn("never fall back", text)
 
     def test_grok_route_is_explicit_oauth_only_and_exact_n_is_queued(self):
-        skill = (SKILL_ROOT / "SKILL.md").read_text(encoding="utf-8")
+        skill = skill_text()
         route_path = SKILL_ROOT / "references" / "grok-oauth-explicit-routing.md"
         self.assertTrue(route_path.is_file())
         route = route_path.read_text(encoding="utf-8")
@@ -131,7 +139,7 @@ class SkillContractTests(unittest.TestCase):
         self.assertIn("API-key-only does not enable this route", route)
 
     def test_production_batch_contract_is_explicit(self):
-        skill = (SKILL_ROOT / "SKILL.md").read_text(encoding="utf-8")
+        skill = skill_text()
         execution = (SKILL_ROOT / "references" / "execution-contract.md").read_text(encoding="utf-8")
         batch_contract = (SKILL_ROOT / "references" / "batch-production-contract.md").read_text(encoding="utf-8")
         batch_script = SKILL_ROOT / "scripts" / "codex_subscription_batch.py"
@@ -152,7 +160,7 @@ class SkillContractTests(unittest.TestCase):
         self.assertIn("is still one image call", combined)
 
     def test_bulk_ideation_uses_mpw_without_vision_qc_or_run_residue(self):
-        skill = (SKILL_ROOT / "SKILL.md").read_text(encoding="utf-8")
+        skill = skill_text()
         execution = (SKILL_ROOT / "references" / "execution-contract.md").read_text(encoding="utf-8")
         combined = skill + execution
         for required in (
@@ -166,14 +174,14 @@ class SkillContractTests(unittest.TestCase):
             self.assertIn(required, combined)
 
     def test_cross_os_paths_fail_closed_with_windows_guidance(self):
-        skill = (SKILL_ROOT / "SKILL.md").read_text(encoding="utf-8")
+        skill = skill_text()
         execution = (SKILL_ROOT / "references" / "execution-contract.md").read_text(encoding="utf-8")
         combined = skill + execution
         for required in ("/Users/...", "UNC", "WSL mount", "junction", "reparse", "errors 5 and 32"):
             self.assertIn(required, combined)
 
     def test_apparel_dynamic_fullset_branch_preserves_role_boundaries(self):
-        skill = (SKILL_ROOT / "SKILL.md").read_text(encoding="utf-8")
+        skill = skill_text()
         branch_path = SKILL_ROOT / "references" / "cases" / "apparel-ghost-cut-folder-batch.md"
         self.assertTrue(branch_path.is_file())
         branch = branch_path.read_text(encoding="utf-8")

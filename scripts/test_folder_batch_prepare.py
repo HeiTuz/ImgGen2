@@ -1,3 +1,4 @@
+from fixtures.png_fixture import png_bytes
 import contextlib
 import hashlib
 import importlib.util
@@ -26,7 +27,7 @@ helper = load("folder_batch_prepare")
 
 class FolderBatchPrepareTests(unittest.TestCase):
     def image(self, root, name, data=None):
-        path = root / name; path.write_bytes(data or name.encode()); return path
+        path = root / name; path.write_bytes(data if data is not None else (png_bytes(seed=sum(name.encode())) if path.suffix == ".png" else name.encode())); return path
     def invoke(self, *args):
         out = io.StringIO()
         with contextlib.redirect_stdout(out): code = helper.main(list(args))
@@ -93,10 +94,30 @@ class FolderBatchPrepareTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temp:
             r=Path(temp);s=r/"p";s.mkdir();self.image(s,"f1.jpg");w=r/"w";a=self.prepare(s,w);b=self.prepare(s,w);self.assertEqual(a[0],b[0]);self.assertEqual(a[1]["result_subfolder"],b[1]["result_subfolder"]);code,x=self.prepare(s,w,extra=("--candidate-attempts","4"));self.assertEqual(code,2);self.assertIn("different folder contract",x["error"])
     def selected(self, root, folder_id, names=("f1.png","b1.png","d1.png")):
+        source = root.parent / folder_id
+        if source.is_dir():
+            for name in names:
+                source_file = source / (Path(name).stem + ".jpg")
+                if not source_file.exists(): source_file.write_bytes(name.encode())
         root.mkdir(); rows=[]
         for n in names:
             p=self.image(root,n); rows.append({"filename":n,"selected_sha256":fullset.sha256_file(p),"output_id":p.stem,"source_candidate_set":"candidate-set-1"})
-        fullset.atomic_json(root/"provenance.json",{"schema_version":1,"folder_id":folder_id,"files":rows,"selection_mode":"mixed","min_family_similarity_gate":.8,"score":{"fidelity_sum":2.85,"min_similarity":.93,"average_similarity":.96}});return rows
+        fullset.atomic_json(root/"provenance.json",{"schema_version":1,"folder_id":folder_id,"files":rows,"selection_mode":"mixed","min_family_similarity_gate":.8,"score":{"fidelity_sum":.95*len(names),"min_similarity":.93,"average_similarity":.96}});return rows
+    def test_publish_blocks_missing_cut_and_nonfinite_scores(self):
+        with tempfile.TemporaryDirectory() as temp:
+            r=Path(temp); source=r/"product"; source.mkdir(); selected=r/"selected"
+            self.selected(selected, source.name)
+            original=fullset.read_json(selected/"provenance.json")
+            for mutation in ("missing", "nan", "weak_gate"):
+                data=json.loads(json.dumps(original))
+                if mutation == "missing": data["files"].pop()
+                elif mutation == "nan": data["score"]["min_similarity"]=float("nan")
+                else: data["min_family_similarity_gate"]=0.1
+                fullset.atomic_json(selected/"provenance.json", data)
+                code, result=self.invoke("--input-dir",str(source),"--publish-from",str(selected),"--timestamp","20260715_123456")
+                self.assertEqual(code,2, result)
+                self.assertFalse((source/"AI_RESULT_20260715_123456").exists())
+
     def test_12_publish(self):
         with tempfile.TemporaryDirectory() as temp:
             r=Path(temp);s=r/"p";s.mkdir();selected=r/"selected";self.selected(selected,s.name);code,x=self.invoke("--input-dir",str(s),"--publish-from",str(selected),"--timestamp","20260715_123456");self.assertEqual(code,0);self.assertTrue(x["published"]);self.assertEqual(x["counts"]["published"],3);self.assertTrue((s/"AI_RESULT_20260715_123456"/"batch-summary.json").is_file())
