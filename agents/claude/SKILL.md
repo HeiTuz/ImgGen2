@@ -1,6 +1,6 @@
 ---
 name: ImgGen2
-description: "Generate and edit images through the default official Codex CLI subscription route, with provenance-safe single-image transport, resumable exact-N batches, independent QC, and an optional dynamic apparel full-set workflow. Claude Code host surface: the optional Grok route requires Hermes-native tooling and stays disabled on this host."
+description: "Generate and edit images through the default official Codex CLI subscription route, with provenance-safe single-image transport, resumable exact-N batches, independent QC, and an optional dynamic apparel full-set workflow. Claude Code host surface: the explicit Grok route uses the official Grok CLI native image tools."
 version: 1.14.0
 author: HeiTuz
 license: MIT
@@ -17,7 +17,7 @@ metadata:
 > **Host integration — Claude Code.** This file is the entry surface for Claude Code installs (`~/.claude/skills/ImgGen2`). The rules below are identical to the canonical SKILL.md; only the host-integration surface (frontmatter, invocation notes, tool naming) is migrated.
 > - **Invocation**: Claude Code loads this skill by frontmatter `description` match. `scripts/*.py` commands run through the Bash tool.
 > - **Vision QC tool**: the "host's default Vision tool" on this host is Claude's native image understanding — read the artifact with the Read tool and apply the QC rubric below. No separate reviewer model is pinned.
-> - **Grok route**: the explicit-only Grok route requires the Hermes-native xAI `image_generate` tool plus `xai-oauth`. Neither exists on Claude Code, so an explicit Grok request always fails closed as `grok_route: disabled` — never substitute Codex or another provider for it.
+> - **Grok route**: explicit Grok requests use `scripts/grok_cli_transport.py` with the official Grok CLI native `image_gen` / `image_edit` tools. Require an existing working CLI login. Read the routing contract; never substitute another provider or extract credentials.
 
 Generate, inspect, and deliver the requested images. Codex remains the default image route; provider-specific requests follow the routing table below. Complete the authorized workflow through generation, required QC, targeted recovery, and actual file delivery. A plan, dry-run, task specification, process ID, or successful transport alone is not a completed image request.
 
@@ -41,7 +41,7 @@ Respect steering during execution. Preserve accepted cuts, source locks, and cou
 | Portable MPW handoff | `scripts/consume_image_handoff.py`; production workflows, “Portable compiled handoff” |
 | Identity grid or full-body series | Production workflows, portrait grids, full-body variation, and Vision QC sections |
 | Product references or apparel folder | Production workflows, product-photo dispatcher and apparel sections; [folder case](references/cases/apparel-ghost-cut-folder-batch.md) |
-| Explicit Grok / 그록 / xAI | [OAuth routing](references/grok-oauth-explicit-routing.md); requires `xai-oauth` and Hermes-native xAI `image_generate` |
+| Explicit Grok / 그록 / xAI | [Grok routing](references/grok-oauth-explicit-routing.md); official `grok` CLI on Codex/Claude, native OAuth tool on Hermes |
 | Explicit Wan / Alibaba image | `scripts/alibaba_token_plan_transport.py`; production workflows, “Direct-native media routing” |
 | Explicit HappyHorse video | Configured Hermes Alibaba adapter; production workflows provider contract |
 | Explicit browser workflow | [browser-backed editing](references/browser-backed-image-editing.md) |
@@ -57,7 +57,7 @@ For references, inspect the images before describing them. Lock only observed de
 
 For human proportions use the user's numbers first, then an available `references/full-body-calibration.local.md`, otherwise natural proportions from the reference. Avoid compulsory measurement questions. For details, name the source-supported feature and intended crop so the model cannot satisfy a detail request with another generic front view.
 
-The subscription helper has no size/quality flags. Express the requested dimensions and ratio in the prompt and verify actual PNG dimensions. Use the portable handoff dimension check for exact requirements. Never silently substitute a nearby ratio, stretch anatomy, pad/crop away a mismatch, or claim compliance from prompt tokens.
+The Codex subscription helper has no size/quality flags. Express the requested dimensions and ratio in the prompt and verify actual PNG dimensions. Use the portable handoff dimension check for exact requirements. Never silently substitute a nearby ratio, stretch anatomy, pad/crop away a mismatch, or claim compliance from prompt tokens.
 
 ## Execute, review, recover
 
@@ -75,7 +75,7 @@ For edits add `--image /absolute/path/original.png`. Dry-run first, then execute
 | `awaiting_pilot_qc` | Review the exact pilot, write QC JSONL, apply `--qc-results` without `--execute`, then resume with `--execute` |
 | `running` | Wait for the active invocation using its session handle |
 | `awaiting_qc` | Review the listed IDs and apply QC |
-| `incomplete` | Read per-cut categories and `dispatch_stopped_reason`; fix the cause, create/use the failed-or-pending retry manifest |
+| `incomplete` | Read per-cut categories, `unknown_outcomes`, and `dispatch_stopped_reason`; reconcile uncertain attempts before creating any retry manifest |
 | `pending` | Resume the existing batch within its recorded bounds |
 | `complete` | Verify ledger-owned files and destination, then deliver |
 

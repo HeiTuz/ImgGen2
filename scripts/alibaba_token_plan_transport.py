@@ -13,6 +13,8 @@ from pathlib import Path
 from typing import Any
 from urllib.parse import urlparse
 from portable_paths import is_symlink_or_reparse
+from image_artifacts import inspect_image, ArtifactError
+from codex_subscription_transport import copy_png_exclusive, TransportError as CopyError
 
 HERMES_HOME = Path(os.environ.get("HERMES_HOME", "~/.hermes")).expanduser().resolve()
 PLUGIN_PATH = HERMES_HOME / "plugins" / "alibaba-token-plan-media" / "__init__.py"
@@ -87,7 +89,18 @@ def run(prompt: str, *, reference_url: str | None = None, model: str = "wan2.7-i
     artifact = artifact.resolve()
     if not artifact.is_file() or artifact.stat().st_size <= 0:
         raise TransportError("Wan provider returned a missing or empty artifact")
+    source_artifact = artifact
+    try:
+        metadata = inspect_image(source_artifact)
+        artifact = run_dir / ("image.png" if metadata["format"] == "png" else "image.jpg")
+        copy_png_exclusive(source_artifact, artifact)
+        if inspect_image(artifact) != metadata:
+            raise TransportError("Wan artifact changed during collection")
+    except (ArtifactError, CopyError, OSError):
+        raise TransportError("Wan provider returned an invalid or unstable image artifact") from None
     record = {"schema_version": 1, "run_id": run_id, "created_at": _now(), "transport": "imggen2-alibaba-token-plan", "provider": "alibaba-token-plan", "model": str(result.get("model") or model), "artifact_id": artifact.stem, "artifact_path": str(artifact), "artifact_sha256": _sha256(artifact), "artifact_bytes": artifact.stat().st_size, "prompt": prompt, "prompt_digest": _prompt_digest(prompt), "aspect_ratio": aspect_ratio, "reference_summary": {"count": int(bool(reference_url)), "input_kind": "public_https" if reference_url else "none", "input_role": "identity_reference" if reference_url else "none", "regeneration_parent_artifact_id": None}, "hermes_native_config_touched": False, "qc_status": "pending_review"}
+    record["source_artifact_path"] = str(source_artifact)
+    record["image"] = metadata
     provenance = run_dir / "provenance.json"
     provenance.write_text(json.dumps(record, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     return {**record, "provenance_path": str(provenance), "transport_state": "succeeded"}

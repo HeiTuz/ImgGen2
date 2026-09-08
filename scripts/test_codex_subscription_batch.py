@@ -306,6 +306,57 @@ class BatchManifestTests(unittest.TestCase):
 
 
 class BatchExecutionTests(unittest.TestCase):
+    def test_reference_mutation_during_generation_cannot_pass(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            manifest, records = self.make_manifest(root, 2)
+            reference = root / 'reference.png'
+            reference.write_bytes(png_bytes(seed=1))
+            for row in records:
+                row['images'] = [str(reference)]
+            write_jsonl(manifest, records)
+            fake = FakeRunner()
+            def mutate(*args, **kwargs):
+                result = fake(*args, **kwargs)
+                reference.write_bytes(png_bytes(seed=2))
+                return result
+            result = batch.run_batch(manifest, root / 'out', execute=True, runner=mutate)
+            self.assertEqual(len(fake.calls), 1)
+            self.assertEqual(result['counts']['succeeded'], 0)
+            self.assertEqual(result['items'][0]['failure_category'], 'reference_changed')
+            self.assertTrue((root / 'out/0.png').exists())
+
+    def test_saved_qc_off_applies_to_reference_jobs_and_reports_reason(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            manifest, records = self.make_manifest(root, 2)
+            reference = root / 'reference.png'
+            reference.write_bytes(png_bytes())
+            for row in records:
+                row['images'] = [str(reference)]
+                row['qc_required'] = True
+            write_jsonl(manifest, records)
+            config = root / 'vision-qc.json'
+            config.write_text(json.dumps({'version': 2, 'qc_mode': 'off'}))
+            with patch.object(batch, 'VISION_QC_CONFIG', config):
+                runner = FakeRunner()
+                summary = self.approved_run(manifest, root / 'out', runner)
+                self.assertEqual(len(runner.calls), 2)
+                self.assertEqual(summary['completion_state'], 'complete')
+                self.assertTrue(all(item['qc_skip_reason'] == 'disabled_by_user' for item in summary['items']))
+                config.write_text(json.dumps({'version': 2, 'qc_mode': 'auto'}))
+                with self.assertRaisesRegex(batch.BatchError, 'Manifest drift'):
+                    self.approved_run(manifest, root / 'out', FakeRunner())
+
+    def test_broken_qc_setting_does_not_silently_enable_review(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            manifest, _ = self.make_manifest(root, 1)
+            config = root / 'vision-qc.json'
+            config.write_text('broken')
+            with patch.object(batch, 'VISION_QC_CONFIG', config):
+                with self.assertRaisesRegex(batch.BatchError, 'saved vision-qc.json'):
+                    batch.load_manifest(manifest, root / 'out')
     def test_submission_window_is_bounded_for_large_batches(self):
         class TrackingExecutor(batch.ThreadPoolExecutor):
             peak = 0
@@ -363,7 +414,12 @@ class BatchExecutionTests(unittest.TestCase):
                 original = (out / "0.png").read_bytes()
                 jobs, _ = batch.load_manifest(manifest, out)
                 retry = root / "retry.jsonl"
-                batch.write_retry_manifest(jobs, batch.load_ledger(out / batch.LEDGER_NAME), retry)
+                ledger = batch.load_ledger(out / batch.LEDGER_NAME)
+                if category in batch.UNKNOWN_OUTCOME_CATEGORIES:
+                    with self.assertRaisesRegex(batch.BatchError, 'Unknown generation outcome'):
+                        batch.write_retry_manifest(jobs, ledger, retry)
+                batch.write_retry_manifest(jobs, ledger, retry,
+                                           unknown_outcomes_reconciled=category in batch.UNKNOWN_OUTCOME_CATEGORIES)
                 retry_rows = [row for _, row in batch._load_jsonl(retry)]
                 self.assertEqual(len(retry_rows), 11)
                 self.assertNotIn("j0", [row["id"] for row in retry_rows])
@@ -583,7 +639,7 @@ class BatchExecutionTests(unittest.TestCase):
     def test_partial_failure_is_recorded_and_retry_manifest_contains_only_failed(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp); manifest, _ = self.make_manifest(root, 4)
-            runner = FakeRunner({"p2": "timeout"})
+            runner = FakeRunner({"p2": "moderation_rejected"})
             summary = self.approved_run(manifest, root / "out", runner, workers="2")
             self.assertEqual(summary["counts"]["failed"], 1)
             jobs, _ = batch.load_manifest(manifest, root / "out")
@@ -619,7 +675,7 @@ class BatchExecutionTests(unittest.TestCase):
             with self.assertRaisesRegex(batch.BatchError, "conflicts"):
                 self.approved_run(manifest, out, FakeRunner())
 
-    def test_interrupted_running_is_recovered_to_pending(self):
+    def test_interrupted_running_is_not_regenerated(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp); manifest, _ = self.make_manifest(root, 1); out = root / "out"; out.mkdir()
             jobs, digest = batch.load_manifest(manifest, out)
@@ -636,10 +692,32 @@ class BatchExecutionTests(unittest.TestCase):
             })
             ledger["jobs"]["j0"]["status"] = "running"
             batch.atomic_write_json(out / batch.LEDGER_NAME, ledger)
-            summary = self.approved_run(manifest, out, FakeRunner())
-            self.assertEqual(summary["counts"]["succeeded"], 1)
+            runner = FakeRunner()
+            summary = self.approved_run(manifest, out, runner)
+            self.assertEqual(runner.calls, [])
+            self.assertEqual(summary["unknown_outcomes"], ['j0'])
+            self.assertEqual(summary["next_action"], 'reconcile_unknown_outcomes_before_retry')
             recovered = batch.load_ledger(out / batch.LEDGER_NAME)
-            self.assertEqual(len(recovered["jobs"]["j0"]["attempts"]), 1)
+            self.assertEqual(len(recovered["jobs"]["j0"]["attempts"]), 0)
+            with self.assertRaisesRegex(batch.BatchError, 'Unknown generation outcome'):
+                batch.write_retry_manifest(jobs, recovered, root / 'retry.jsonl')
+            self.assertEqual(batch.write_retry_manifest(jobs, recovered, root / 'retry.jsonl',
+                                                       unknown_outcomes_reconciled=True), 1)
+
+    def test_timeout_blocks_admission_and_retry_until_reconciled(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp); manifest, _ = self.make_manifest(root, 3)
+            out = root / 'out'
+            runner = FakeRunner({'p0': 'outcome_unknown'})
+            summary = self.approved_run(manifest, out, runner, workers='1')
+            self.assertEqual(len(runner.calls), 1)
+            self.assertEqual(summary['unknown_outcomes'], ['j0'])
+            again = FakeRunner()
+            self.approved_run(manifest, out, again, workers='1')
+            self.assertEqual(again.calls, [])
+            jobs, _ = batch.load_manifest(manifest, out)
+            with self.assertRaisesRegex(batch.BatchError, 'Unknown generation outcome'):
+                batch.write_retry_manifest(jobs, batch.load_ledger(out / batch.LEDGER_NAME), root / 'retry.jsonl')
 
     def test_corrupt_ledger_and_manifest_drift_fail_closed(self):
         with tempfile.TemporaryDirectory() as tmp:

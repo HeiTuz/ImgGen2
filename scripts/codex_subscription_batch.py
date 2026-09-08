@@ -38,18 +38,32 @@ LEDGER_NAME = ".imggenimggen2-batch.json"
 LOCK_NAME = ".imggenimggen2-batch.lock"
 SUMMARY_JSON_NAME = "batch-summary.json"
 SUMMARY_MD_NAME = "batch-summary.md"
+VISION_QC_CONFIG = Path(__file__).resolve().parent.parent / "vision-qc.json"
 SCHEMA_VERSION = 1
 VALID_STATUSES = {"pending", "running", "succeeded", "failed", "qc_failed", "skipped"}
 _ID_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$")
 # These failures affect the shared execution lane, rather than one image brief.
 STOP_DISPATCH_CATEGORIES = frozenset({
     "rate_limited", "authentication_required", "entitlement_denied",
-    "model_unavailable", "image_tool_unavailable", "cli_argument_error",
+    "model_unavailable", "image_tool_unavailable", "cli_argument_error", "outcome_unknown", "timeout", "reference_changed",
 })
+UNKNOWN_OUTCOME_CATEGORIES = frozenset({"outcome_unknown", "timeout", "interrupted_outcome_unknown"})
 
 
 class BatchError(RuntimeError):
     pass
+
+
+def saved_qc_mode() -> str:
+    if not VISION_QC_CONFIG.exists():
+        return "auto"
+    try:
+        config = json.loads(VISION_QC_CONFIG.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        raise BatchError("Cannot read saved vision-qc.json; repair the installed QC setting") from None
+    if not isinstance(config, dict) or config.get("qc_mode") not in {"auto", "off"}:
+        raise BatchError("Invalid saved vision-qc.json mode; expected auto or off")
+    return config["qc_mode"]
 
 
 def _now() -> str:
@@ -165,6 +179,7 @@ def _load_jsonl(path: Path) -> Iterator[tuple[int, dict[str, object]]]:
 
 
 def load_manifest(path: Path, output_root: Path) -> tuple[list[BatchJob], str]:
+    qc_mode = saved_qc_mode()
     path = path.expanduser().resolve()
     output_root = output_root.expanduser().resolve()
     jobs: list[BatchJob] = []
@@ -253,6 +268,11 @@ def load_manifest(path: Path, output_root: Path) -> tuple[list[BatchJob], str]:
         )
         qc_required = bool(images or promotional or product_case or explicit_qc)
         merged_metadata = dict(metadata)
+        if qc_mode == "off":
+            qc_required = False
+            merged_metadata["qc_skip_reason"] = "disabled_by_user"
+        else:
+            merged_metadata.pop("qc_skip_reason", None)
         reference_evidence = []
         for ref in images:
             digest, size = references.digest(ref)
@@ -308,7 +328,8 @@ def _initial_job_state(job: BatchJob) -> dict[str, object]:
         "output_sha256": None,
         "output_size": None,
         "failure_category": None,
-        "qc": {"status": "not_evaluated"} if job.qc_required else {"status": "skipped", "reason": "simple_text_only"},
+        "qc": {"status": "not_evaluated"} if job.qc_required else {
+            "status": "skipped", "reason": job.metadata.get("qc_skip_reason", "simple_text_only")},
         "updated_at": _now(),
     }
 
@@ -432,9 +453,12 @@ def recover_and_validate_ledger(
         if state.get("prompt_hash") != _sha256_bytes(job.prompt.encode()) or state.get("output_path") != job.output_path:
             raise BatchError(f"Manifest drift for job {job.id}")
         if state["status"] == "running":
-            state["status"] = "pending"
-            state["failure_category"] = "interrupted_recovered"
+            state["status"] = "failed"
+            state["failure_category"] = "interrupted_outcome_unknown"
             state["updated_at"] = _now()
+            attempts = state.get("attempts", [])
+            if attempts and attempts[-1].get("status") == "running":
+                attempts[-1].update(status="failed", failure_category="interrupted_outcome_unknown", finished_at=_now())
         if state["status"] in {"succeeded", "skipped", "qc_failed"}:
             if not job.output.is_file() or is_symlink_or_reparse(job.output):
                 raise BatchError(f"Resume evidence missing for {job.id}: output is absent or unsafe.")
@@ -445,7 +469,7 @@ def recover_and_validate_ledger(
             digest, size = artifact["sha256"], artifact["size"]
             if digest != state.get("output_sha256") or size != state.get("output_size"):
                 raise BatchError(f"Resume evidence mismatch for {job.id}: output hash/size changed.")
-        elif job.output.exists():
+        elif job.output.exists() and state.get("failure_category") not in UNKNOWN_OUTCOME_CATEGORIES:
             raise BatchError(f"Unowned existing output conflicts with job {job.id}: {job.output}")
 
 
@@ -555,6 +579,17 @@ def _attempt_namespace(state: Mapping[str, object]) -> int:
     return len(attempts) + 1 if isinstance(attempts, list) else 1
 
 
+def verify_job_references(job: BatchJob) -> None:
+    references = ReferenceDigestCache()
+    for evidence in job.metadata.get("reference_evidence", []):
+        try:
+            digest, size = references.digest(Path(evidence["path"]))
+        except (OSError, BatchError):
+            raise BatchError("Reference became unavailable; category=reference_changed") from None
+        if digest != evidence["sha256"] or size != evidence["size"]:
+            raise BatchError("Reference changed since manifest preparation; category=reference_changed")
+
+
 def _run_one(
     job: BatchJob,
     ledger: dict[str, object],
@@ -582,6 +617,7 @@ def _run_one(
             ledger["updated_at"] = _now()
             atomic_write_json(ledger_path, ledger)
         try:
+            verify_job_references(job)
             job.output.parent.mkdir(parents=True, exist_ok=True)
             result = runner(
                 job.prompt,
@@ -593,6 +629,7 @@ def _run_one(
             )
             if result.get("transport_state") != "succeeded":
                 raise BatchError("Transport did not report succeeded state.")
+            verify_job_references(job)
             artifact = inspect_png(job.output)
             digest, size = artifact["sha256"], artifact["size"]
             with ledger_lock:
@@ -647,10 +684,14 @@ def build_summary(ledger: Mapping[str, object]) -> dict[str, object]:
             "failure_category": state.get("failure_category"),
             "qc_required": bool(state.get("qc_required")),
             "qc_status": qc_status,
+            "qc_skip_reason": state.get("qc", {}).get("reason"),
             "output_sha256": state.get("output_sha256"),
             "artifact": state.get("artifact"),
         })
-    if ledger.get("awaiting_pilot_qc"):
+    unknown_outcomes = [item["id"] for item in items if item["failure_category"] in UNKNOWN_OUTCOME_CATEGORIES]
+    if unknown_outcomes:
+        completion_state, next_action = "incomplete", "reconcile_unknown_outcomes_before_retry"
+    elif ledger.get("awaiting_pilot_qc"):
         completion_state, next_action = "awaiting_pilot_qc", "review_pilot_and_apply_qc"
     elif counts.get("running"):
         completion_state, next_action = "running", "wait_for_active_jobs"
@@ -677,6 +718,7 @@ def build_summary(ledger: Mapping[str, object]) -> dict[str, object]:
         "awaiting_pilot_qc": bool(ledger.get("awaiting_pilot_qc")),
         "awaiting_qc": awaiting_qc,
         "dispatch_stopped_reason": ledger.get("dispatch_stopped_reason"),
+        "unknown_outcomes": unknown_outcomes,
         "counts": counts,
         "items": items,
     }
@@ -779,6 +821,9 @@ def run_batch(
             atomic_write_json(ledger_path, ledger)
         states = ledger["jobs"]
         assert isinstance(states, dict)
+        if any(state.get("failure_category") in UNKNOWN_OUTCOME_CATEGORIES for state in states.values()):
+            atomic_write_json(ledger_path, ledger)
+            return write_summaries(output_root, ledger, ledger_path)
         pilot_id = str(ledger.get("pilot_id") or jobs[0].id)
         pilot = next((job for job in jobs if job.id == pilot_id), jobs[0])
         pilot_state = states[pilot.id]
@@ -944,8 +989,14 @@ def reconcile_qc(
         return write_summaries(output_root, ledger, ledger_path)
 
 
-def write_retry_manifest(jobs: Sequence[BatchJob], ledger: Mapping[str, object], path: Path) -> int:
+def write_retry_manifest(jobs: Sequence[BatchJob], ledger: Mapping[str, object], path: Path,
+                         *, unknown_outcomes_reconciled: bool = False) -> int:
     states = ledger["jobs"]
+    if not unknown_outcomes_reconciled and any(
+        state.get("failure_category") in UNKNOWN_OUTCOME_CATEGORIES for state in states.values()
+    ):
+        raise BatchError("Unknown generation outcome: inspect prior sessions and retain completed artifacts first. "
+                         "Only after confirming a new generation is needed, use --unknown-outcomes-reconciled with --retry-manifest.")
     lines: list[str] = []
     statuses = [state["status"] for state in states.values()]
     include_pending = any(status in {"failed", "qc_failed"} for status in statuses) and "pending" in statuses
@@ -968,6 +1019,9 @@ def write_retry_manifest(jobs: Sequence[BatchJob], ledger: Mapping[str, object],
             if promo_failed:
                 additions.append("Promo corrections: " + ", ".join(str(v) for v in promo_failed) + ".")
             record["prompt"] = job.prompt + ("\n" + " ".join(additions) if additions else "")
+            record["output_path"] = (Path("retries") / f"{job.id}-attempt-{generation + 1}.png").as_posix()
+        elif state.get("failure_category") in UNKNOWN_OUTCOME_CATEGORIES:
+            # Reconciliation may leave an unaccepted artifact at the old path.
             record["output_path"] = (Path("retries") / f"{job.id}-attempt-{generation + 1}.png").as_posix()
         record["retry_of"] = job.id
         lines.append(canonical_json(record))
@@ -992,8 +1046,12 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser.add_argument("--codex-bin", type=Path, help="Explicit official Codex CLI executable")
     parser.add_argument("--qc-results", type=Path)
     parser.add_argument("--retry-manifest", type=Path)
+    parser.add_argument("--unknown-outcomes-reconciled", action="store_true",
+                        help="Assert prior uncertain attempts were inspected and new generation is needed; requires --retry-manifest")
     parser.add_argument("--ledger", type=Path, help="Ledger path contained by output root; use a new ledger for retry manifests")
     args = parser.parse_args(argv)
+    if args.unknown_outcomes_reconciled and (not args.retry_manifest or args.qc_results):
+        parser.error("--unknown-outcomes-reconciled requires --retry-manifest without --qc-results")
     try:
         if args.workers != "auto":
             int(args.workers)
@@ -1010,7 +1068,8 @@ def main(argv: Sequence[str] | None = None) -> int:
                 jobs, _ = load_manifest(args.manifest, args.output_root)
                 ledger_path = (args.output_root / LEDGER_NAME) if args.ledger is None else args.ledger
                 ledger = load_ledger(ledger_path.expanduser().resolve())
-                write_retry_manifest(jobs, ledger, args.retry_manifest)
+                write_retry_manifest(jobs, ledger, args.retry_manifest,
+                                     unknown_outcomes_reconciled=args.unknown_outcomes_reconciled)
         print(json.dumps(summary, ensure_ascii=False, indent=2))
     except (BatchError, ValueError) as exc:
         print(json.dumps({"error": str(exc)}, ensure_ascii=False), file=os.sys.stderr)

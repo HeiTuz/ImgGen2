@@ -35,7 +35,7 @@ Respect steering during execution. Preserve accepted cuts, source locks, and cou
 | Portable MPW handoff | `scripts/consume_image_handoff.py`; production workflows, “Portable compiled handoff” |
 | Identity grid or full-body series | Production workflows, portrait grids, full-body variation, and Vision QC sections |
 | Product references or apparel folder | Production workflows, product-photo dispatcher and apparel sections; [folder case](references/cases/apparel-ghost-cut-folder-batch.md) |
-| Explicit Grok / 그록 / xAI | [OAuth routing](references/grok-oauth-explicit-routing.md); requires `xai-oauth` and Hermes-native xAI `image_generate` |
+| Explicit Grok / 그록 / xAI | [Grok routing](references/grok-oauth-explicit-routing.md); official `grok` CLI on Codex/Claude, native OAuth tool on Hermes |
 | Explicit Wan / Alibaba image | `scripts/alibaba_token_plan_transport.py`; production workflows, “Direct-native media routing” |
 | Explicit HappyHorse video | Configured Hermes Alibaba adapter; production workflows provider contract |
 | Explicit browser workflow | [browser-backed editing](references/browser-backed-image-editing.md) |
@@ -51,7 +51,7 @@ For references, inspect the images before describing them. Lock only observed de
 
 For human proportions use the user's numbers first, then an available `references/full-body-calibration.local.md`, otherwise natural proportions from the reference. Avoid compulsory measurement questions. For details, name the source-supported feature and intended crop so the model cannot satisfy a detail request with another generic front view.
 
-The subscription helper has no size/quality flags. Express the requested dimensions and ratio in the prompt and verify actual PNG dimensions. Use the portable handoff dimension check for exact requirements. Never silently substitute a nearby ratio, stretch anatomy, pad/crop away a mismatch, or claim compliance from prompt tokens.
+The Codex subscription helper has no size/quality flags. Express the requested dimensions and ratio in the prompt and verify actual PNG dimensions. Use the portable handoff dimension check for exact requirements. Never silently substitute a nearby ratio, stretch anatomy, pad/crop away a mismatch, or claim compliance from prompt tokens.
 
 ## Execute, review, recover
 
@@ -69,7 +69,7 @@ For edits add `--image /absolute/path/original.png`. Dry-run first, then execute
 | `awaiting_pilot_qc` | Review the exact pilot, write QC JSONL, apply `--qc-results` without `--execute`, then resume with `--execute` |
 | `running` | Wait for the active invocation using its session handle |
 | `awaiting_qc` | Review the listed IDs and apply QC |
-| `incomplete` | Read per-cut categories and `dispatch_stopped_reason`; fix the cause, create/use the failed-or-pending retry manifest |
+| `incomplete` | Read per-cut categories, `unknown_outcomes`, and `dispatch_stopped_reason`; reconcile uncertain attempts before creating any retry manifest |
 | `pending` | Resume the existing batch within its recorded bounds |
 | `complete` | Verify ledger-owned files and destination, then deliver |
 

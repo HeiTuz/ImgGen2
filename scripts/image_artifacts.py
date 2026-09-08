@@ -1,4 +1,4 @@
-"""Network-free PNG container and byte-identity checks shared by executors."""
+"""Network-free PNG/JPEG container and byte-identity checks shared by executors."""
 from __future__ import annotations
 import hashlib
 import os
@@ -79,3 +79,51 @@ def inspect_png(path: Path) -> dict[str, object]:
     except OSError as exc:
         raise ArtifactError("PNG artifact is missing, unsafe, or unreadable") from exc
     return {"format": "png", "width": width, "height": height, "sha256": digest.hexdigest(), "size": size}
+
+
+def inspect_image(path: Path) -> dict:
+    if is_symlink_or_reparse(path) or not path.is_file():
+        raise ArtifactError("Artifact must be a regular, non-symlink file")
+    fd = os.open(path, os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0) | getattr(os, "O_NONBLOCK", 0))
+    with os.fdopen(fd, "rb") as stream:
+        before = os.fstat(stream.fileno())
+        if not stat.S_ISREG(before.st_mode):
+            raise ArtifactError("Image artifact must be a regular file")
+        data = stream.read()
+        after = os.fstat(stream.fileno())
+        fields = ("st_dev", "st_ino", "st_size", "st_mtime_ns", "st_ctime_ns")
+        if len(data) != before.st_size or any(getattr(before, k) != getattr(after, k) for k in fields):
+            raise ArtifactError("Image changed during inspection")
+    if data.startswith(b"\x89PNG\r\n\x1a\n"):
+        return inspect_png(path)
+    # Check JPEG framing and dimensions; this does not decode pixels or replace QC.
+    if not data.startswith(b"\xff\xd8") or not data.endswith(b"\xff\xd9"):
+        raise ArtifactError("Unsupported or truncated image; expected JPEG or PNG")
+    i, dimensions, marker = 2, None, None
+    while i < len(data) - 2:
+        if data[i] != 255:
+            raise ArtifactError("Invalid JPEG marker")
+        while i < len(data) and data[i] == 255:
+            i += 1
+        if i >= len(data):
+            break
+        marker = data[i]
+        i += 1
+        if marker in {0xD8, 0xD9, 0x01} or 0xD0 <= marker <= 0xD7:
+            continue
+        length = int.from_bytes(data[i:i + 2], "big")
+        if length < 2 or i + length > len(data):
+            raise ArtifactError("Truncated JPEG segment")
+        if marker == 0xDA:
+            if length < 6 or i + length >= len(data) - 2:
+                raise ArtifactError("JPEG has a truncated or empty scan")
+            break
+        if marker in {0xC0, 0xC1, 0xC2, 0xC3, 0xC5, 0xC6, 0xC7, 0xC9, 0xCA, 0xCB, 0xCD, 0xCE, 0xCF}:
+            if length < 8:
+                raise ArtifactError("Invalid JPEG frame")
+            dimensions = (int.from_bytes(data[i + 5:i + 7], "big"), int.from_bytes(data[i + 3:i + 5], "big"))
+        i += length
+    if not dimensions or min(dimensions) < 1 or marker != 0xDA:
+        raise ArtifactError("JPEG has no valid frame and scan")
+    return {"format": "jpeg", "width": dimensions[0], "height": dimensions[1],
+            "sha256": hashlib.sha256(data).hexdigest(), "size": len(data)}

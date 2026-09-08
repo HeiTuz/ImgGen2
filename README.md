@@ -233,7 +233,7 @@ npx --yes --allow-git=all --package github:HeiTuz/ImgGen2 imggen-imggen2 -- --co
 | [작업별 제작 절차](references/production-workflows.md) | 초상, 상품, 의류, 배치, 검수 |
 | [Astra 실행 설계](references/astra-orchestration.md) | 문서 분리, 상태 판단, 완료 증거 |
 | [배치 안정성·확장성](references/reliability-and-scaling.md) | 워커 제한, 공유 해시, 재개, 실패 처리 |
-| [명시적 Grok 경로](references/grok-oauth-explicit-routing.md) | Hermes xAI OAuth와 네이티브 도구가 있을 때만 사용 |
+| [명시적 Grok 경로](references/grok-oauth-explicit-routing.md) | Codex·Claude에서는 공식 Grok CLI, Hermes에서는 xAI OAuth 네이티브 도구 사용 |
 | [호스트 오버레이](agents/README.md) | Codex·Claude Code·Hermes 설치 표면 |
 | [MPW](https://github.com/HeiTuz/MPW) | 독립 프롬프트 작성 스킬 |
 

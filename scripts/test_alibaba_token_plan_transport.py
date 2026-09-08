@@ -4,6 +4,7 @@ import os
 from pathlib import Path
 import tempfile
 import unittest
+from fixtures.png_fixture import png_bytes
 
 MODULE_PATH = Path(__file__).resolve().parent / "alibaba_token_plan_transport.py"
 SPEC = importlib.util.spec_from_file_location("alibaba_token_plan_transport", MODULE_PATH)
@@ -19,7 +20,7 @@ class FakeProvider:
 
     def generate(self, prompt, aspect_ratio, **kwargs):
         self.calls.append((prompt, aspect_ratio, kwargs))
-        self.artifact.write_bytes(b"png-data")
+        self.artifact.write_bytes(png_bytes(seed=len(self.calls)))
         return {"success": True, "image": str(self.artifact), "model": kwargs["model"]}
 
 
@@ -39,6 +40,21 @@ class AlibabaTokenPlanTransportTests(unittest.TestCase):
             self.assertNotEqual(first["run_id"],second["run_id"])
             self.assertTrue(Path(first["provenance_path"]).is_file())
             self.assertTrue(Path(second["provenance_path"]).is_file())
+            self.assertNotEqual(first["artifact_path"], second["artifact_path"])
+            first_bytes = Path(first["artifact_path"]).read_bytes()
+            provider.artifact.unlink()
+            self.assertEqual(Path(first["artifact_path"]).read_bytes(), first_bytes)
+            self.assertEqual(transport._sha256(Path(first["artifact_path"])), first["artifact_sha256"])
+
+    def test_invalid_provider_image_is_not_accepted(self):
+        class Invalid(FakeProvider):
+            def generate(self, *args, **kwargs):
+                self.artifact.write_bytes(b'not an image')
+                return {"success": True, "image": str(self.artifact)}
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            with self.assertRaisesRegex(transport.TransportError, "invalid or unstable"):
+                transport.run("cup", execute=True, run_root=root / 'runs', provider=Invalid(root / 'cache.png'))
 
     def test_provider_error_does_not_expose_raw_diagnostics(self):
         class Broken:

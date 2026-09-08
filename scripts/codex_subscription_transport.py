@@ -591,9 +591,15 @@ def run(
             check=False,
             env=os.environ.copy(),
         )
-    except subprocess.TimeoutExpired:
+    except subprocess.TimeoutExpired as exc:
+        partial = exc.stdout or b""
+        if isinstance(partial, bytes):
+            partial = partial.decode("utf-8", errors="replace")
+        sessions = sorted(session_ids_in_cli(partial))
         raise TransportError(
-            f"Codex CLI timed out after {timeout_seconds}s; no output retained."
+            f"Codex CLI timed out after {timeout_seconds}s; category=outcome_unknown; "
+            f"session_ids={','.join(sessions) or 'unavailable'}; "
+            "generation may have completed. Reconcile session artifacts before retrying."
         ) from None
     cli_output = f"{completed.stdout}\n{completed.stderr}"
     if completed.returncode != 0:

@@ -443,8 +443,8 @@ class ApparelDynamicFullSetTests(unittest.TestCase):
                 {"file": "back-a.png", "role": "main_back", "color_identity": "navy"},
             ],
             "requested_outputs": [
-                {"id": "navy", "filename": "navy.png", "view": "front", "color_identity": "navy", "product_description": "knit top", "visible_details": []},
-                {"id": "ivory", "filename": "ivory.png", "view": "front", "color_identity": "ivory", "product_description": "knit top", "visible_details": []},
+                {"id": "navy", "filename": "navy.png", "view": "front", "color_identity": "navy", "product_description": "knit top", "cut_type": "ghost_cut", "visible_details": []},
+                {"id": "ivory", "filename": "ivory.png", "view": "front", "color_identity": "ivory", "product_description": "knit top", "cut_type": "ghost_cut", "visible_details": []},
             ],
         }
         handoff = mpw_compiler.compile_request(request)

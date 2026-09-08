@@ -1,11 +1,11 @@
-# Execution Contract
+# Codex Execution Contract
 
 ## Supported route
 
-The only authorized route is the official Codex CLI using an existing ChatGPT subscription session and its built-in `image_generation` tool. The helper does not force an agent or image model; Codex selects the supported image route. Reasoning effort remains `medium`.
+This contract covers the default official Codex CLI using an existing ChatGPT subscription session and its built-in `image_generation` tool. The helper does not force an agent or image model; Codex selects the supported image route. Reasoning effort remains `medium`.
 `MPW` may compile image prompts when installed, but it is optional and never a required pipeline gate: direct prompt invocation is fully supported. When a compiled handoff is used, it is exactly the final compiled `IMAGE` prompt, never the rough request or prompt fragments. ImgGen2 owns transport, session-scoped artifact recovery, and execution-time safety validation; final visual QC, comparison, and selection belong to the active review workflow for the project.
 
-No image-generation path in this skill may read authentication files, extract cookies, automate a web page, call a private endpoint, or use an API key. Risk-based post-generation QC is delegated to the host's default Vision tool for reference/edit/product/promo work; simple text-only generation skips the visual loop. The installed `vision-qc.json` contains only version, mode, and reviewer-routing metadata; credentials or provider-specific model names are forbidden. `auto` follows the live host Vision configuration and `off` disables visual review while preserving local artifact validation.
+This Codex transport may not read authentication files, extract cookies, automate a web page, call a private endpoint, or use an API key. Explicit Grok, Alibaba and browser workflows have their own routing contracts. Risk-based post-generation QC is delegated to the host's default Vision tool for reference/edit/product/promo work; simple text-only generation skips the visual loop. The installed `vision-qc.json` contains only version, mode, and reviewer-routing metadata; credentials or provider-specific model names are forbidden. `auto` follows the live host Vision configuration and `off` disables visual review while preserving local artifact validation.
 
 ## Model-label honesty
 
@@ -23,7 +23,7 @@ Dry-run is always allowed and is the default.
 
 **Single image:** the user's explicit generation request is the authorization. Run the bounded invocation with `--execute`; do not stop for a redundant confirmation or require an approval environment variable.
 
-**Production batch:** the user's explicit product-folder or batch request authorizes the bounded manifest. Dry-run and digests remain available for diagnostics and provenance, not as a mandatory approval round-trip. Run with `--execute`; unchanged-scope retries continue automatically. Ask again only when count/scope expands, provider or paid route changes, originals would be overwritten, or an external/public action is added.
+**Production batch:** the user's explicit product-folder or batch request authorizes the bounded manifest. Dry-run and digests remain available for diagnostics and provenance, not as a mandatory approval round-trip. Run with `--execute`; confirmed failures may be retried within the unchanged scope. Interrupted or timed-out attempts must be reconciled before any new generation. Ask again only when count/scope expands, provider or paid route changes, originals would be overwritten, or an external/public action is added.
 
 Legacy approval markers may still be accepted by old wrappers but are not required and should not be persisted. A generation failure does not authorize a provider/model fallback or an unbounded automatic retry. Vision QC follows the host's active default model and must return structured evidence before acceptance. External publication or delivery remains a separate action.
 
@@ -33,7 +33,7 @@ Legacy approval markers may still be accepted by old wrappers but are not requir
 
 Bulk ideation/reference-board generation uses `creative_batch.py`: MPW compiles deterministic prompt variation records, all records carry `qc_required: false`, and only final PNGs are published after complete transport success. A 100- or 1000-image text-only ideation request does not become a Vision-QC job merely because the count is large. Hidden run state is deleted on success and retained only after failure/interruption.
 
-The first manifest record is a sequential transport pilot. It stops with `awaiting_pilot_qc: true` only when references, product metadata, promo layout, or explicit `qc_required` make visual review necessary. A simple text-only pilot records `qc_status: skipped` and opens bounded fan-out in the same invocation. The output root has one exclusive runner lock and one atomic ledger. Resume requires ledger ownership plus matching regular-file SHA-256 and size; path existence alone is a conflict. One pass makes at most one provider call per pending ID; `rate_limited` and `timed_out` failures do not auto-retry.
+The first manifest record is a sequential transport pilot. It stops with `awaiting_pilot_qc: true` only when references, product metadata, promo layout, or explicit `qc_required` make visual review necessary. A simple text-only pilot records `qc_status: skipped` and opens bounded fan-out in the same invocation. The output root has one exclusive runner lock and one atomic ledger. Resume requires ledger ownership plus matching regular-file SHA-256 and size; path existence alone is a conflict. One pass makes at most one provider call per pending ID; `rate_limited` and `outcome_unknown` failures do not auto-retry. An interrupted running ledger entry becomes a failed unknown outcome, never a new pending job. See the batch contract for reconciliation and retry-manifest rules.
 
 ## Cross-platform paths and Windows filesystem behavior
 

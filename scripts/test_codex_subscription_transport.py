@@ -470,7 +470,7 @@ class CodexSubscriptionTransportTests(unittest.TestCase):
                     side_effect=transport.subprocess.TimeoutExpired(cmd="codex", timeout=1),
                 ), \
                 patch.dict(os.environ, {}, clear=True):
-            with self.assertRaisesRegex(transport.TransportError, "timed out"):
+            with self.assertRaisesRegex(transport.TransportError, "category=outcome_unknown"):
                 transport.run("draw", Path(tmp) / "out.png", [], execute=True)
 
     def test_empty_artifacts_are_ignored(self):

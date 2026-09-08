@@ -2,25 +2,25 @@
 
 Read the section selected by the entry skill; do not load every workflow for a single image. The entry skill owns general orchestration.
 
-Generate and materialize direct/native media. Codex remains the default ordinary image route. Explicit `Grok`/`xAI` requests use the existing OAuth-gated native lane. Explicit `Wan`/`Alibaba` image requests execute through ImgGen2's `scripts/alibaba_token_plan_transport.py`, which calls the installed Alibaba provider directly, writes ImgGen2 provenance, and leaves Hermes-native `image_gen.provider` untouched. Higgsfield and Midjourney use their own provider-specific skills, not this skill. ImgGen2 proves transport and emits artifacts; final acceptance is handled by the active QC workflow outside this execution skill. MPW may help write prompts, but is never a required pipeline gate.
+Generate and materialize direct/native media. Codex remains the default ordinary image route. Explicit `Grok`/`xAI` requests use the official Grok CLI on Codex/Claude or the native OAuth tool on Hermes, as specified in [Grok routing](grok-oauth-explicit-routing.md). Explicit `Wan`/`Alibaba` image requests execute through ImgGen2's `scripts/alibaba_token_plan_transport.py`, which calls the installed Alibaba provider directly, writes ImgGen2 provenance, and leaves Hermes-native `image_gen.provider` untouched. Higgsfield and Midjourney use their own provider-specific skills, not this skill. ImgGen2 proves transport and emits artifacts; final acceptance is handled by the active QC workflow outside this execution skill. MPW may help write prompts, but is never a required pipeline gate.
 
 ## Capabilities
 
 - text-to-image, edits, and two-to-four reference compositions;
 - dry-run-first transport with exclusive output creation and session-scoped artifact provenance;
 - resumable JSONL batches with a sequential pilot, bounded fan-out, ledger ownership, selective retry, and independent QC reconciliation;
-- explicit-only Grok image generation through Hermes native `image_generate`, gated on `xai-oauth`, with exact-N queueing that starts at 3 active jobs and never exceeds 5;
+- explicit Grok generation/editing through the official CLI on Codex/Claude, with sequential per-cut orchestration; Hermes uses its native `image_generate` OAuth lane and bounded exact-N queue;
 - risk-based post-generation QC through the host's default Vision tool in `auto` mode for reference/edit/product/promo work, with simple text-only generation skipping the visual loop;
 - optional apparel full-set preparation: colors stay product metadata while `candidate_attempt_count` independently defaults to three complete candidate attempts, followed by default mixed per-cut selection across attempts at a minimum 80% family-similarity gate; an explicit `selection_mode: whole-set` keeps one coherent candidate set.
 
-Never use private endpoints, DOM automation, cookie extraction, silent provider fallback, or a model claim not supported by returned evidence. **API-key billing is prohibited except for an explicit, user-approved Alibaba Token Plan quota/billing lane.** Reuse only the credential already owned by the configured Hermes provider; never print, copy, move, or create a key. An `XAI_API_KEY` alone never enables the HeiTuz Grok route. ImgGen2 verifies transport and materialization; final visual QC and selection belong to the active review workflow. Never turn a requested label into an attestation: `observed_model` and `model_identity_attested` stay unset unless supported evidence exists. For delivery, use a supported file attachment; printing the path is not delivery evidence.
+Never use private endpoints, DOM automation outside the explicitly selected browser workflow, cookie extraction, silent provider fallback, or a model claim not supported by returned evidence. **API-key billing is prohibited except for an explicit, user-approved Alibaba Token Plan quota/billing lane.** Reuse only the credential already owned by the configured Hermes provider; never print, copy, move, or create a key. An `XAI_API_KEY` alone never enables the HeiTuz Grok route. ImgGen2 verifies transport and materialization; final visual QC and selection belong to the active review workflow. Never turn a requested label into an attestation: `observed_model` and `model_identity_attested` stay unset unless supported evidence exists. For delivery, use a supported file attachment; printing the path is not delivery evidence.
 Never fall back to a different generation provider when the selected route fails.
 
 ## Boundaries
 
 - A successful transport proves only that an artifact was obtained; it does not prove visual acceptance or a particular model identity.
 - An explicit user request to create images authorizes the bounded generation scope. `--execute` runs it without a second confirmation or approval-marker ceremony. Fresh approval is required only for scope/count expansion, provider or paid-route changes, overwriting originals, or external publication/delivery.
-- The presence of xAI credentials never changes routing. Bare image and exact-count requests stay on Codex. Grok activates only on explicit provider intent and fails closed as `grok_route: disabled` when `xai-oauth` or the native xAI `image_generate` tool is unavailable.
+- The presence of xAI credentials never changes routing. Bare image and exact-count requests stay on Codex. Grok activates only on explicit provider intent. Check the selected host lane: the CLI needs a working existing Grok login; the Hermes lane requires `xai-oauth` plus native xAI `image_generate`. A missing Hermes tool does not disable the CLI lane.
 - Product-photo candidate tasks use the standard ImgGen2 generation backend. Every attempt receives the same complete source inventory, product specification, QC contract, and output inventory while keeping output roots and ledgers disjoint.
 - A path from another operating system is not a local file. Never guess `/Users/...` as `C:\\Users\\...` or map a foreign home directory by username. Require file transfer/re-attachment or a real local/UNC path. Only deterministic WSL mount mappings such as `/mnt/c/...` may be converted automatically.
 - On Windows, accept drive-letter paths, UNC shares, spaces, Unicode, and local `file://` URIs. Reject reserved device names, trailing dots/spaces, credential-bearing file URIs, and symlink/junction/reparse traversal. Use the standard extended-length prefix for long absolute paths instead of silently relocating them.
@@ -51,11 +51,11 @@ When the user requests a non-square overall canvas for a 3×3 grid, say both par
 
 For a 9-angle beauty turntable, a reliable reading order is: front, left 3/4, full left profile, left rear 3/4, full back, right rear 3/4, full right profile, right 3/4, front. QC verifies each requested angle is visibly distinct and that rear views preserve the front-view hair part, length, texture, neckline, and garment continuity.
 
-### Explicit Grok OAuth route
+### Explicit Grok routes
 
-Use Grok only when the current request explicitly says to generate or edit the image with `Grok`, `그록`, or `xAI`. Require a configured Hermes `xai-oauth` credential and the Hermes-native xAI `image_generate` tool in the current session. API-key-only environments do not qualify. If either gate is absent, stop without login, token inspection, or fallback.
+Use Grok only when the current request explicitly says `Grok`, `그록`, or `xAI`. On Codex/Claude, use `scripts/grok_cli_transport.py`: one `--prompt` and `--output` per cut, with `--image` for an edit. The active agent prepares the cut list and runs the jobs sequentially after pilot QC; there is no Grok CLI batch-manifest executor. Preserve successful per-cut outputs and provenance on resume. On Hermes, use the existing native OAuth lane with its own queue. Do not mix the two hosts' tool or authentication requirements.
 
-Do not invoke Grok through `hermes chat`, `progrok`, browser cookies, or a new private API client. A single request calls native `image_generate` once. An exact-N request creates N independent jobs, runs one pilot through local materialization, hash verification, and QC, then fans out from 3 active jobs to a maximum of 5 while queueing the remainder. Failed-job-only retries never overwrite or repeat verified successes. Full contract: [references/grok-oauth-explicit-routing.md](grok-oauth-explicit-routing.md).
+Read [Grok routing](grok-oauth-explicit-routing.md) for dry-run, execution, recovery, actual-format delivery, and the Hermes-only gates. Do not infer subscription coverage from a successful CLI response.
 
 ### Portable compiled handoff
 
@@ -103,6 +103,8 @@ When the user asks for N full-body variants of one person from an attached portr
 
 ### Reference-backed product-photo dispatcher
 
+This is the active agent's workflow, not a separate dispatcher executable. Inspect references, write the ProductSpec and cut plan, and bind those observations into every JSONL prompt and metadata record before running the Codex batch helper.
+
 When the request contains one or more product references and asks for multiple product photos, sets, colourways, detail cuts, or a product batch, **do not compile raw references directly into image calls.** The product-photo lane has four mandatory stages:
 
 1. **Vision intake → immutable `ProductSpec`.** Analyze every reference first and retain only observed evidence: product family, component count, silhouette, relative dimensions, construction, hardware, material/texture, pattern, logo placement, and validated colourways. Unknown or occluded details stay unknown; never invent them. A colourway is product metadata, not new product geometry.
@@ -120,7 +122,7 @@ This lane is execution-time safety validation, not final acceptance: it exists t
 
 For a text-only creation with no reference, edit, product-photo correction, promotional layout, or explicit QC request, skip Vision analysis and regeneration. Still verify the output locally: expected file exists, is non-empty, has the expected image format, and does not overwrite another artifact. Mark this path as `qc_status: skipped` with reason `simple_text_only`.
 
-The installed `vision-qc.json` contains `{version: 2, requested_mode: "auto", qc_mode: "auto", reviewer: "host-default-vision"}` and no credentials. `auto` is the default in interactive and non-interactive installs. `off` is the only alternative and disables visual review even for high-risk cases; local artifact validation still applies.
+The installed `vision-qc.json` contains `{version: 2, requested_mode: "auto", qc_mode: "auto", reviewer: "host-default-vision"}` and no credentials. `auto` is the default in interactive and non-interactive installs. `off` is the only alternative and disables visual review even for high-risk cases; local artifact validation still applies. The batch executor reads this saved mode and records `disabled_by_user`, rather than labeling reference work as simple text-only. Inspect the saved value with `node scripts/vision_qc_setup.mjs --status`. To change it, rerun the installer with `--vision-qc auto|off`; `imggen update` preserves it but has no mode-change flag.
 
 When QC is required, review the image against the requested brief, source fidelity, text accuracy when applicable, material realism, layout, and cross-image consistency. **For a reference-backed human portrait or identity grid, explicitly inspect identity-bearing anchors across every panel: face geometry, eyes/nose/mouth relationship, hairline and distinctive loose strands, visible marks or natural asymmetry, skin tone, and the requested framing/alignment.** Report panel coordinates for any drift; do not accept a merely attractive grid when it fails same-person recognition. Require a structured result containing the four axis scores, pass/fail, observed defects, and the smallest regeneration delta. Portrait-grid QC may add `identity_consistency` as an optional fifth axis; when supplied it must meet the same 4.0 floor to pass, while the canonical average remains the four required axes. Regenerate only failed required cases and only with the smallest failed-axis delta. The review report records the image hash and dimensions; requested model names are not model-identity evidence.
 
@@ -129,12 +131,12 @@ When QC is required, review the image against the requested brief, source fideli
 | Request | ImgGen2 route |
 | --- | --- |
 | Ordinary single image or exact-N image batch | Codex subscription default |
-| Explicit `Grok` / `그록` / `xAI` image request with `xai-oauth` and native tool available | Grok OAuth; no API-key-only fallback |
+| Explicit `Grok` / `그록` / `xAI` image request | Official Grok CLI on Codex/Claude; native OAuth tool on Hermes; see the Grok routing contract |
 | Explicit `Wan` / `Alibaba` image request | `scripts/alibaba_token_plan_transport.py`; `wan2.7-image` default or explicit `wan2.7-image-pro` |
 | Explicit `HappyHorse` / `Alibaba` video request | Configured Hermes-native Alibaba adapter; explicit `happyhorse-1.1-t2v`, `happyhorse-1.1-i2v`, or `happyhorse-1.1-r2v` |
 | Explicit Higgsfield or Midjourney request | Use the provider-specific skill; never emulate or replace it here |
 
-For a Wan image lane, prove the installed provider is available, then run `python scripts/alibaba_token_plan_transport.py --prompt "..." --reference-url "https://..." --execute`. The script calls the registered provider implementation directly and writes `$HERMES_HOME/artifacts/imggen2/<run-id>/provenance.json`; it must never change `image_gen.provider`, which remains reserved for the Hermes-native xAI lane. Local source paths are rejected whenever Bailian accepts only public HTTP(S) references; never fabricate a URL or upload through an unverified side channel. Return the provider-materialized cache file and hand its path plus provenance to the active review workflow whenever QC, comparison, or selection is required.
+For a Wan image lane, prove the installed provider is available, then run `python scripts/alibaba_token_plan_transport.py --prompt "..." --reference-url "https://..." --execute`. The script calls the registered provider implementation directly and writes `$HERMES_HOME/artifacts/imggen2/<run-id>/provenance.json`; it must never change `image_gen.provider`, which remains reserved for the Hermes-native xAI lane. Local source paths are rejected whenever Bailian accepts only public HTTP(S) references; never fabricate a URL or upload through an unverified side channel. Return the hash-verified run-owned image copy and hand its path plus provenance to the active review workflow whenever QC, comparison, or selection is required.
 
 QC repair is always **prompt revision plus fresh generation from the immutable original reference**. Never pass a generated candidate as `image_url` or use it as the next run's reference. Provenance must retain `input_role: identity_reference` and `regeneration_parent_artifact_id: null`; otherwise the candidate is an edit chain and is invalid for QC acceptance.
 
@@ -186,4 +188,4 @@ python -m unittest discover -s scripts -p 'test_*.py' -v
 python -m py_compile scripts/*.py
 ```
 
-The test suite covers output collision handling, dry-run safety, session provenance, batch resume/retry/QC behavior, explicit-only Grok OAuth routing, API-key-only rejection, exact-N queueing without shrinking, dynamic apparel task count, complete inventory, immutable source hashes, disjoint task paths, missing candidates, mixed per-cut and explicit whole-set 80% selection with deterministic ties, and delegation-cap packing.
+The test suite covers output collision handling, dry-run safety, session provenance, batch resume/retry/QC behavior, explicit Grok host routing, native CLI artifact recovery, API-key-only rejection on Hermes, exact-count planning, dynamic apparel task count, complete inventory, immutable source hashes, disjoint task paths, missing candidates, mixed per-cut and explicit whole-set 80% selection with deterministic ties, and delegation-cap packing.
