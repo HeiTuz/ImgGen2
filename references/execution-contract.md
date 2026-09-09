@@ -1,9 +1,13 @@
 # Codex Execution Contract
 
+Reviewed 2026-09-09 against the official GPT Image 2.5 image generation and image prompting guides.
+
 ## Supported route
 
 This contract covers the default official Codex CLI using an existing ChatGPT subscription session and its built-in `image_generation` tool. The helper does not force an agent or image model; Codex selects the supported image route. Reasoning effort remains `medium`.
 `MPW` may compile image prompts when installed, but it is optional and never a required pipeline gate: direct prompt invocation is fully supported. When a compiled handoff is used, it is exactly the final compiled `IMAGE` prompt, never the rough request or prompt fragments. ImgGen2 owns transport, session-scoped artifact recovery, and execution-time safety validation; final visual QC, comparison, and selection belong to the active review workflow for the project.
+
+The official GPT Image 2.5 API identifies `gpt-image-2.5-flare` for fast everyday generation and `gpt-image-2.5-sunburst` for higher-precision edits and demanding quality. Preserve an explicit Flare/Sunburst request when the active tool exposes that selector. This helper does not expose a model, quality, or size selector, so API examples and parameters cannot be passed through the Codex CLI or used to claim a selected model. In the Codex conversational edit flow, a cumulative edit or retry uses the latest accepted/user-selected base and never the failed candidate; independent cuts and retries remain bound to immutable originals.
 
 This Codex transport may not read authentication files, extract cookies, automate a web page, call a private endpoint, or use an API key. Explicit Grok, Alibaba and browser workflows have their own routing contracts. Risk-based post-generation QC is delegated to the host's default Vision tool for reference/edit/product/promo work; simple text-only generation skips the visual loop. The installed `vision-qc.json` contains only version, mode, and reviewer-routing metadata; credentials or provider-specific model names are forbidden. `auto` follows the live host Vision configuration and `off` disables visual review while preserving local artifact validation.
 
