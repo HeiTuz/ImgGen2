@@ -21,6 +21,22 @@ SPEC.loader.exec_module(transport)
 
 
 class CodexSubscriptionTransportTests(unittest.TestCase):
+    def test_path_and_descriptor_stat_representations_can_differ(self):
+        real_fstat = os.fstat
+
+        def descriptor_stat(fd):
+            info = real_fstat(fd)
+            return SimpleNamespace(st_mode=info.st_mode, st_size=info.st_size,
+                                   st_dev=0, st_ino=0, st_ctime_ns=0,
+                                   st_mtime_ns=info.st_mtime_ns // 1000000000 * 1000000000)
+
+        with tempfile.TemporaryDirectory() as tmp:
+            reference = Path(tmp) / "reference.png"
+            reference.write_bytes(png_bytes())
+            with patch.object(transport.os, "fstat", side_effect=descriptor_stat):
+                result = transport.reference_fingerprints([reference])
+            self.assertEqual(result[0]["sha256"], transport.hashlib.sha256(reference.read_bytes()).hexdigest())
+
     def test_reference_change_during_cli_is_rejected_before_delivery(self):
         for mutation in ("modify", "delete", "replace"):
             with self.subTest(mutation=mutation), tempfile.TemporaryDirectory() as tmp:

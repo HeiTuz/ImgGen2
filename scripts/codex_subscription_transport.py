@@ -39,15 +39,21 @@ def reference_fingerprints(refs: Sequence[Path]) -> list[dict[str, object]]:
             if not stat.S_ISREG(before.st_mode):
                 raise OSError("Reference is not a regular file")
             digest = hashlib.sha256()
-            with path.open("rb") as stream:
+            fd = os.open(path, os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0) | getattr(os, "O_NONBLOCK", 0))
+            with os.fdopen(fd, "rb") as stream:
                 opened = os.fstat(stream.fileno())
+                if not stat.S_ISREG(opened.st_mode):
+                    raise OSError("Reference is not a regular file")
                 for chunk in iter(lambda: stream.read(1024 * 1024), b""):
                     digest.update(chunk)
                 after = os.fstat(stream.fileno())
             fields = ("st_dev", "st_ino", "st_size", "st_mtime_ns", "st_ctime_ns")
             signature = tuple(getattr(before, field) for field in fields)
-            if any(tuple(getattr(info, field) for field in fields) != signature
-                   for info in (opened, after, path.lstat())):
+            # Path and descriptor stat representations can differ on Windows.
+            # Compare each API to itself, retaining both identity checks.
+            if (tuple(getattr(path.lstat(), field) for field in fields) != signature
+                    or any(getattr(opened, field) != getattr(after, field) for field in fields)
+                    or opened.st_size != before.st_size):
                 raise OSError("Reference changed while hashing")
         except OSError:
             raise TransportError(
