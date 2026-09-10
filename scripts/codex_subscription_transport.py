@@ -8,6 +8,7 @@ requires an explicit flag; dry-run is the default.
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import os
 from datetime import datetime
@@ -27,6 +28,34 @@ DOWNLOADS_DIR = Path.home() / "Downloads"
 REASONING_EFFORT = "medium"
 
 CLI_TIMEOUT_SECONDS = 900
+
+
+def reference_fingerprints(refs: Sequence[Path]) -> list[dict[str, object]]:
+    """Bind input bytes and file identity without assuming an image format."""
+    result = []
+    for path in refs:
+        try:
+            before = path.lstat()
+            if not stat.S_ISREG(before.st_mode):
+                raise OSError("Reference is not a regular file")
+            digest = hashlib.sha256()
+            with path.open("rb") as stream:
+                opened = os.fstat(stream.fileno())
+                for chunk in iter(lambda: stream.read(1024 * 1024), b""):
+                    digest.update(chunk)
+                after = os.fstat(stream.fileno())
+            fields = ("st_dev", "st_ino", "st_size", "st_mtime_ns", "st_ctime_ns")
+            signature = tuple(getattr(before, field) for field in fields)
+            if any(tuple(getattr(info, field) for field in fields) != signature
+                   for info in (opened, after, path.lstat())):
+                raise OSError("Reference changed while hashing")
+        except OSError:
+            raise TransportError(
+                "Reference changed or became unreadable; category=reference_changed; "
+                "recover this invocation before retrying."
+            ) from None
+        result.append({"path": str(path), "sha256": digest.hexdigest(), "identity": signature})
+    return result
 
 
 def cli_timeout_seconds() -> int:
@@ -575,6 +604,8 @@ def run(
         raise TransportError(str(exc)) from None
     command = build_command(prompt, output, refs, resolved_codex=resolved)
     summary = request_summary(command, output, refs, _resolved_provenance(resolved))
+    reference_state = reference_fingerprints(refs)
+    summary["reference_sha256"] = [item["sha256"] for item in reference_state]
     if not execute:
         return summary
     # The caller's explicit image-generation request authorizes this bounded invocation.
@@ -602,6 +633,11 @@ def run(
             "generation may have completed. Reconcile session artifacts before retrying."
         ) from None
     cli_output = f"{completed.stdout}\n{completed.stderr}"
+    if reference_fingerprints(refs) != reference_state:
+        raise TransportError(
+            "Reference changed during Codex execution; category=reference_changed; "
+            "generated artifacts were not delivered. Recover this invocation before retrying."
+        )
     if completed.returncode != 0:
         category = classify_cli_failure(completed.stdout, completed.stderr)
         raise TransportError(

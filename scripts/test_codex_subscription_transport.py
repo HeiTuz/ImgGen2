@@ -21,6 +21,42 @@ SPEC.loader.exec_module(transport)
 
 
 class CodexSubscriptionTransportTests(unittest.TestCase):
+    def test_reference_change_during_cli_is_rejected_before_delivery(self):
+        for mutation in ("modify", "delete", "replace"):
+            with self.subTest(mutation=mutation), tempfile.TemporaryDirectory() as tmp:
+                reference = Path(tmp) / "reference.png"
+                reference.write_bytes(png_bytes())
+                output = Path(tmp) / "out.png"
+
+                def complete(*args, **kwargs):
+                    if mutation == "modify":
+                        reference.write_bytes(png_bytes(2, 3))
+                    elif mutation == "delete":
+                        reference.unlink()
+                    else:
+                        replacement = Path(tmp) / "replacement.png"
+                        replacement.write_bytes(reference.read_bytes())
+                        replacement.replace(reference)
+                    return transport.subprocess.CompletedProcess([], 0, stdout="", stderr="")
+
+                with patch.object(transport, "resolve_codex_command", return_value=self._resolved()), \
+                     patch.object(transport.subprocess, "run", side_effect=complete), \
+                     patch.object(transport, "select_fresh_session_png") as select:
+                    with self.assertRaisesRegex(transport.TransportError, "category=reference_changed"):
+                        transport.run("edit", output, [reference], execute=True)
+                    select.assert_not_called()
+                    self.assertFalse(output.exists())
+
+    def test_dry_run_records_reference_hash_without_invoking_cli(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            reference = Path(tmp) / "reference.png"
+            reference.write_bytes(png_bytes())
+            with patch.object(transport, "resolve_codex_command", return_value=self._resolved()), \
+                 patch.object(transport.subprocess, "run") as run:
+                result = transport.run("edit", Path(tmp) / "out.png", [reference])
+                self.assertEqual(result["reference_sha256"], [transport.hashlib.sha256(reference.read_bytes()).hexdigest()])
+                run.assert_not_called()
+
     def test_bare_http_429_is_classified_for_batch_admission_control(self):
         for error in ("HTTP 429", '{"status":429}', "429", "status code: 429"):
             with self.subTest(error=error):

@@ -1,5 +1,9 @@
 # Batch reliability and scaling review
 
+## 2026-09-10: single-image reference integrity
+
+The Codex single-image transport now fingerprints reference bytes and file identity before execution and checks them again when the CLI returns. A changed, replaced, deleted, or unreadable reference is rejected with `reference_changed` before artifact selection or delivery. Dry-run and success summaries include `reference_sha256`; no image format restriction or provider call is added by fingerprinting. Existing batch admission control already stops on this category. This detects changes visible at the checks, not a complete history of every concurrent write. Live image quality was not benchmarked.
+
 Reviewed on 2026-09-08. These are implementation references, not additional generation providers or dependencies.
 
 ## Base repository: codex-fleet
