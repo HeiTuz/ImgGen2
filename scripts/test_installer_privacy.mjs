@@ -34,8 +34,10 @@ try {
 
   const npmCli = process.env.npm_execpath;
   assert.ok(npmCli, "npm_execpath is required for package privacy smoke");
-  const packed = JSON.parse(run(process.execPath, [npmCli, "pack", "--dry-run", "--json"]));
-  const names = packed[0].files.map((file) => file.path);
+  const packedReport = JSON.parse(run(process.execPath, [npmCli, "pack", "--dry-run", "--json"]));
+  // npm <= 11 reports an array of packages; npm 12 keys the report by package name.
+  const packed = Array.isArray(packedReport) ? packedReport[0] : Object.values(packedReport)[0];
+  const names = packed.files.map((file) => file.path);
   const packageFiles = JSON.parse(fs.readFileSync(path.join(root, "package.json"), "utf8")).files;
   assert.equal(packageFiles.includes("agents/**"), true, "npm files allowlist omits agent overlays");
   if (fs.existsSync(path.join(root, "agents"))) {

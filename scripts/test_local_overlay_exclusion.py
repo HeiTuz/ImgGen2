@@ -49,7 +49,10 @@ class LocalOverlayExclusionTests(unittest.TestCase):
                 text=True,
             )
             self.assertEqual(packed.returncode, 0, packed.stderr or packed.stdout)
-            files = json.loads(packed.stdout)[0]["files"]
+            report = json.loads(packed.stdout)
+            # npm <= 11 reports an array of packages; npm 12 keys the report by package name.
+            package = report[0] if isinstance(report, list) else next(iter(report.values()))
+            files = package["files"]
             packaged_paths = {entry["path"] for entry in files}
             self.assertIn("references/execution-contract.md", packaged_paths)
             self.assertNotIn("references/probe.local.md", packaged_paths)

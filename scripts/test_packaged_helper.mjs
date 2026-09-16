@@ -31,8 +31,10 @@ assert.ok(python, "Python 3 was not found on PATH");
 
 const temp = fs.mkdtempSync(path.join(os.tmpdir(), "imggenimggen2-packaged-helper-"));
 try {
-  const dryRun = JSON.parse(run(process.execPath, [npmCli, "pack", "--dry-run", "--json"]));
-  const names = dryRun[0].files.map((file) => file.path);
+  const dryRunReport = JSON.parse(run(process.execPath, [npmCli, "pack", "--dry-run", "--json"]));
+  // npm <= 11 reports an array of packages; npm 12 keys the report by package name.
+  const dryRun = Array.isArray(dryRunReport) ? dryRunReport[0] : Object.values(dryRunReport)[0];
+  const names = dryRun.files.map((file) => file.path);
   for (const required of [
     "scripts/folder_batch_prepare.py",
     "scripts/test_folder_batch_prepare.py",
