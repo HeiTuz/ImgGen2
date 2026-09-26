@@ -14,7 +14,7 @@ One JSON object per line:
 
 Required native fields: `id`, `prompt`, `output_path`. Optional: `images` (0–4), `promotional`, `rendered_text_exists`, `qc_required`, `metadata`, `series_locks`, `retry_of`. `qc_required: true` forces visual review for a job that would otherwise be a simple text-only generation; `false` never disables review triggered by references, product-photo metadata, or promotional layout while the installed QC mode is `auto`. An explicitly saved `vision-qc.json` mode of `off` disables visual gates and records `qc_skip_reason: disabled_by_user`; file validation remains required. The setting is part of effective manifest identity, so changing it mid-batch causes drift rather than silently changing acceptance rules.
 
-A validated `MPW` production JSONL record is accepted directly: `full_prompt` aliases `prompt`; category/format/tier/lane/palette/AR/size/quality/promo fields are retained as compile metadata; `cut_type: promo_poster` and text fields infer QC branches. Because the Codex transport returns PNG only, compiled `.webp`/other output suffixes are deterministically normalized to `.png`, while the original compiled path remains in metadata. Run the MPW JSONL validator before this transport preflight; this runner validates execution ownership, not prompt doctrine.
+Existing `full_prompt` and leftover metadata fields are accepted for older-manifest compatibility. Text inspection is `node <MPW>/scripts/check_prompt.mjs --manifest jobs.jsonl`. This runner still validates execution ownership, not prompt doctrine. Because the Codex transport returns PNG only, compiled `.webp`/other output suffixes are deterministically normalized to `.png`, while the original compiled path remains in metadata. Promotional and rendered-text branches use generic signals (`promotional`, `cut_type: promo_poster`, `korean_copy`, `labels`, or an explicit `rendered_text_exists`). A `Text-in-image:` label is compatibility-only; current MPW assembled output does not emit it.
 
 The loader rejects duplicate IDs, duplicate normalized output ownership, absolute/traversing paths, symlink escapes, unknown fields, missing/symlink references, and more than four references. Native manifest output paths are PNG; MPW production suffixes are normalized to PNG as described above. `output_path` is always relative to the output root.
 
@@ -88,7 +88,7 @@ The helper does not inspect pixels. Independent human/Vision review supplies QC 
 Promotional jobs also require:
 
 ```json
-{"physical_type_subject_interaction":true,"generic_card_regression":false,"printed_meta_ui_not_literal":true,"color_count":3,"finishing_device_count":2,"korean_glyph_mask_safe":true}
+{"physical_type_subject_interaction":true,"generic_card_regression":false}
 ```
 
 Apply and emit failed-cut-only retries:
