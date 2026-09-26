@@ -4,23 +4,21 @@
 
 The Codex single-image transport now fingerprints reference bytes and file identity before execution and checks them again when the CLI returns. A changed, replaced, deleted, or unreadable reference is rejected with `reference_changed` before artifact selection or delivery. Dry-run and success summaries include `reference_sha256`; no image format restriction or provider call is added by fingerprinting. Existing batch admission control already stops on this category. This detects changes visible at the checks, not a complete history of every concurrent write. Live image quality was not benchmarked.
 
-Reviewed on 2026-09-08. These are implementation references, not additional generation providers or dependencies.
+## Batch runner design decisions
 
-## Base repository: codex-fleet
-
-The user identified [gongnyang/codex-fleet](https://github.com/gongnyang/codex-fleet/tree/dc4d724d3c978077e406b4b3f0811bb0157094ad) as ImgGen2's original base. The comparison below uses that exact commit, fetched on 2026-09-08. The initial comparison omitted this repository; it was added and checked before final delivery.
-
-| Fleet implementation | ImgGen2 treatment |
+| Area | ImgGen2 behavior and reason |
 | --- | --- |
-| [CLI worker pool, RAM target and semaphore ramp](https://github.com/gongnyang/codex-fleet/blob/dc4d724d3c978077e406b4b3f0811bb0157094ad/runners/codex_imagegen_runner.py#L17-L51) | Preserve the CLI-per-image design and success-driven ramp. Keep the existing explicit hard cap and conservative resource fallback; add the bounded future window. |
-| [429 detection, parent-owned collection and closed stdin](https://github.com/gongnyang/codex-fleet/blob/dc4d724d3c978077e406b4b3f0811bb0157094ad/runners/codex_imagegen_runner.py#L71-L89) | Restore bare 429 classification, `stdin=DEVNULL`, and an instruction to end after generation without shell work or moving artifacts. These now have regression tests. |
-| [Global newest-unclaimed recovery](https://github.com/gongnyang/codex-fleet/blob/dc4d724d3c978077e406b4b3f0811bb0157094ad/runners/codex_imagegen_runner.py#L53-L69) | Retain ImgGen2's session-ID filter and exclusive copy. A global claim lock prevents duplicate collection but does not bind an image to its requesting worker. |
-| [Output-exists resume](https://github.com/gongnyang/codex-fleet/blob/dc4d724d3c978077e406b4b3f0811bb0157094ad/runners/codex_imagegen_runner.py#L104-L106) | Retain ledger ownership, hashes, pilot QC and failed/pending-only retry. Existing files alone do not prove a successful prior job. |
-| [Per-record aspect ratio and size in the prompt](https://github.com/gongnyang/codex-fleet/blob/dc4d724d3c978077e406b4b3f0811bb0157094ad/runners/codex_imagegen_runner.py#L78-L82) | ImgGen2's current batch contract treats these as compiler metadata; constraints must be present in the compiled prompt. Dedicated native size options are not added or claimed by this change. The portable handoff already checks requested dimensions after transport. |
+| Workers and concurrency | Each image runs in its own CLI invocation, and concurrency grows through a success-driven ramp. An explicit hard cap and a conservative resource fallback bound the pool, and a bounded future window limits outstanding work. |
+| Shared-lane failures and child isolation | A bare 429 is classified as a rate limit. Child processes run with `stdin=DEVNULL`, and the generation instruction tells the worker to end after generation without shell work or moving artifacts. Regression tests cover these. |
+| Artifact collection | A session-ID filter and exclusive copy bind each image to the worker that requested it. A global claim lock would prevent duplicate collection but would not establish that binding. |
+| Resume | The ledger owns outputs, records hashes, gates on pilot QC, and retries only failed or pending jobs. Existing files alone do not prove a successful prior job. |
+| Aspect ratio and size | Per-record ratio and size are compiler metadata; the constraints must be present in the compiled prompt. Dedicated native size options are not added or claimed. The portable handoff checks requested dimensions after transport. |
 
-Fleet's model-size whitelist, fixed account rate and latency estimates are not treated as current capability evidence. The inherited fixed-size/nearest-ratio assertion was removed from all three ImgGen2 skill surfaces to match the actual helper and its dimension-verification contract. Its global process-kill recipes and unrestricted sandbox flag are not copied into runtime behavior.
+Fixed model-size lists, fixed account rates and latency estimates are not treated as current capability evidence. The three ImgGen2 skill surfaces make no fixed-size or nearest-ratio assertion; they follow the actual helper and its dimension-verification contract. Global process-kill recipes and unrestricted sandbox flags are not part of runtime behavior.
 
 ## GitHub sources and decisions
+
+Reviewed on 2026-09-08. These are implementation references, not additional generation providers or dependencies.
 
 | Primary source | Observed pattern | ImgGen2 decision |
 | --- | --- | --- |

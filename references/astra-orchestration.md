@@ -6,8 +6,8 @@ Reviewed 2026-09-08. Astra is the orchestrator, not an attested image-generation
 
 - [OpenAI GPT-6 Astra guidance](https://developers.openai.com/api/docs/guides/latest-model) describes stronger instruction following, sustained tool use, and the need to calibrate initiative and clarification. The entry skill therefore states completion conditions, low-risk defaults, steering, and proportional delegation directly. It routes specialist procedures to a manual rather than loading all modes for every request.
 - [OpenAI skills guidance](https://learn.chatgpt.com/docs/build-skills) informs the small entry surface and progressive disclosure. Host overlays share one rule body; only invocation and Vision-tool framing differ.
-- The original base is [gongnyang/codex-fleet, pinned dc4d724](https://github.com/gongnyang/codex-fleet/blob/dc4d724d3c978077e406b4b3f0811bb0157094ad/runners/codex_imagegen_runner.py). Retained: bounded RAM-aware concurrency, ramping, explicit records, stdin isolation, and rate-limit handling. Replaced: newest global artifact claiming and file-exists-only resume with current-session ownership, ledger hashes, and ambiguous-artifact rejection. These are design adaptations, not upstream feature claims.
-- Further GitHub comparisons and pinned sources are in [reliability and scaling](reliability-and-scaling.md). No upstream API size list or retry policy is treated as proof of subscription transport capability.
+- Batch execution uses bounded RAM-aware concurrency, ramping, explicit records, stdin isolation, and rate-limit handling. Artifact ownership rests on current-session identity, ledger hashes, and ambiguous-artifact rejection; newest-global-artifact claiming and file-exists-only resume are not used.
+- GitHub comparisons and pinned sources are in [reliability and scaling](reliability-and-scaling.md). No provider API size list or retry policy is treated as proof of subscription transport capability.
 
 ## Execution evidence
 

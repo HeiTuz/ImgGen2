@@ -247,6 +247,6 @@ npx --yes --allow-git=all --package github:HeiTuz/ImgGen2 imggen-imggen2 -- --co
 
 ---
 
-병렬 Codex 워커 구조의 출발점은 [gongnyang/codex-fleet](https://github.com/gongnyang/codex-fleet)입니다. 기능을 그대로 복제하기보다 세션 소유권, 검수, 재개·게시 검증을 더했습니다. [구현 비교](references/reliability-and-scaling.md)
+병렬 Codex 워커는 이미지마다 CLI를 한 번씩 실행하고, 결과는 세션 소유권·검수·재개·게시 검증으로 확인합니다. [배치 설계 결정](references/reliability-and-scaling.md)
 
 **MIT · [HeiTuz](https://github.com/HeiTuz)**

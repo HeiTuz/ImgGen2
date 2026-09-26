@@ -59,7 +59,7 @@ After the pilot:
 - each job still invokes the existing session-provenance transport independently;
 - completion order never changes manifest-order summaries.
 
-There is no global-newest-PNG or claimed-pool fallback. Upstream `claimed` locking prevents duplicate claims but can still assign worker B's PNG to worker A. Session/thread identity remains authoritative here.
+There is no global-newest-PNG or claimed-pool fallback. A shared `claimed` lock would prevent duplicate claims but could still assign worker B's PNG to worker A. Session/thread identity remains authoritative here.
 
 ## Ledger and resume
 
