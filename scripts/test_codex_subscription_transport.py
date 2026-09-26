@@ -661,14 +661,10 @@ class CodexSubscriptionTransportTests(unittest.TestCase):
         self.assertEqual(set(plan["deltas"]), {"goal_fit", "material_realism"})
         self.assertEqual(plan["regenerate_outputs"], [str(output)])
 
-    def test_promo_qc_covers_layout_and_safety_checks(self):
+    def test_promo_qc_covers_physical_relation_and_card_regression(self):
         passing = transport.evaluate_promo_qc(
             physical_type_subject_interaction=True,
             generic_card_regression=False,
-            printed_meta_ui_not_literal=True,
-            color_count=3,
-            finishing_device_count=2,
-            korean_glyph_mask_safe=True,
         )
         self.assertEqual(passing["promo_status"], "passed")
         self.assertEqual(passing["failed_promo_checks"], [])
@@ -676,10 +672,6 @@ class CodexSubscriptionTransportTests(unittest.TestCase):
         failing = transport.evaluate_promo_qc(
             physical_type_subject_interaction=False,
             generic_card_regression=True,
-            printed_meta_ui_not_literal=False,
-            color_count=4,
-            finishing_device_count=0,
-            korean_glyph_mask_safe=False,
         )
         self.assertEqual(failing["promo_status"], "failed")
         self.assertEqual(
@@ -687,12 +679,23 @@ class CodexSubscriptionTransportTests(unittest.TestCase):
             [
                 "physical_type_subject_interaction",
                 "generic_card_regression",
-                "printed_meta_ui_not_literal",
-                "color_lock_2_to_3",
-                "finishing_devices_1_to_3",
-                "korean_glyph_mask_safety",
             ],
         )
+
+        ignored_thresholds = transport.evaluate_promo_qc(
+            physical_type_subject_interaction=True,
+            generic_card_regression=False,
+            printed_meta_ui_not_literal=False,
+            color_count=4,
+            finishing_device_count=0,
+            korean_glyph_mask_safe=False,
+        )
+        self.assertEqual(ignored_thresholds["promo_status"], "passed")
+        self.assertEqual(ignored_thresholds["failed_promo_checks"], [])
+        self.assertNotIn("color_lock_2_to_3", ignored_thresholds["promo_checks"])
+        self.assertNotIn("finishing_devices_1_to_3", ignored_thresholds["promo_checks"])
+        self.assertNotIn("korean_glyph_mask_safety", ignored_thresholds["promo_checks"])
+        self.assertNotIn("printed_meta_ui_not_literal", ignored_thresholds["promo_checks"])
 
         passed_axes = transport.evaluate_qc(
             {

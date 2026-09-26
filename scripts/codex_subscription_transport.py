@@ -291,35 +291,23 @@ def evaluate_promo_qc(
     *,
     physical_type_subject_interaction: bool,
     generic_card_regression: bool,
-    printed_meta_ui_not_literal: bool,
-    color_count: int,
-    finishing_device_count: int,
-    korean_glyph_mask_safe: bool,
+    **ignored: object,
 ) -> dict[str, object]:
-    """Evaluate promo-layout checks from local or human observations only."""
-    booleans = (
-        physical_type_subject_interaction,
-        generic_card_regression,
-        printed_meta_ui_not_literal,
-        korean_glyph_mask_safe,
-    )
-    if not all(isinstance(value, bool) for value in booleans):
-        raise ValueError("Promo boolean checks must be booleans.")
-    if (
-        isinstance(color_count, bool)
-        or not isinstance(color_count, int)
-        or isinstance(finishing_device_count, bool)
-        or not isinstance(finishing_device_count, int)
+    """Evaluate promotional layout from physical-relation and card-regression observations.
+
+    Older QC records may still carry unused keys (color counts, finish counts,
+    glyph-mask flags, printed-meta flags). Those keys are accepted so the
+    record parses, but they never change pass or fail.
+    """
+    if not isinstance(physical_type_subject_interaction, bool) or not isinstance(
+        generic_card_regression, bool
     ):
-        raise ValueError("Promo color and finishing-device counts must be integers.")
+        raise ValueError("Promo boolean checks must be booleans.")
+    del ignored
 
     checks = {
         "physical_type_subject_interaction": physical_type_subject_interaction,
         "generic_card_regression": not generic_card_regression,
-        "printed_meta_ui_not_literal": printed_meta_ui_not_literal,
-        "color_lock_2_to_3": 2 <= color_count <= 3,
-        "finishing_devices_1_to_3": 1 <= finishing_device_count <= 3,
-        "korean_glyph_mask_safety": korean_glyph_mask_safe,
     }
     failed_promo_checks = [name for name, passed in checks.items() if not passed]
     return {

@@ -71,10 +71,6 @@ def complete_approved_batch(manifest, out, runner, **kwargs):
             qc_record["promo"] = {
                 "physical_type_subject_interaction": True,
                 "generic_card_regression": False,
-                "printed_meta_ui_not_literal": True,
-                "color_count": 3,
-                "finishing_device_count": 2,
-                "korean_glyph_mask_safe": True,
             }
         qc_path = Path(manifest).parent / f".{Path(manifest).stem}-pilot-qc.jsonl"
         write_jsonl(qc_path, [qc_record])
@@ -263,13 +259,10 @@ class BatchManifestTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp); manifest = root / "jobs.jsonl"
             write_jsonl(manifest, [{
-                "id": "PROMO-P1", "category": "C3", "cut_type": "promo_poster",
-                "full_prompt": "Scene: poster. Text-in-image: headline \\\"여름\\\". AR 4:5",
+                "id": "promo-card", "cut_type": "promo_poster",
+                "full_prompt": "Scene: poster. Text-in-image: headline \\\"여름\\\".",
                 "output_path": "out/promo.webp", "output_format": "webp",
-                "korean_copy": "여름", "ar": "4:5", "size": "1024x1536", "quality": "high",
-                "promo_pattern": "P1", "look_preset": "L1", "promo_text_effect": "mask",
-                "promo_subject": "바다", "finishing_devices": ["barcode"],
-                "palette_authority": "P", "palette_sources": ["P"], "palette": ["#111111", "#eeeeee"],
+                "korean_copy": "여름",
             }])
             jobs, _ = batch.load_manifest(manifest, root / "outputs")
             self.assertEqual(jobs[0].output_path, "out/promo.png")
@@ -509,10 +502,6 @@ class BatchExecutionTests(unittest.TestCase):
                 qc_record["promo"] = {
                     "physical_type_subject_interaction": True,
                     "generic_card_regression": False,
-                    "printed_meta_ui_not_literal": True,
-                    "color_count": 3,
-                    "finishing_device_count": 2,
-                    "korean_glyph_mask_safe": True,
                 }
             qc_path = Path(manifest).parent / f".{Path(manifest).stem}-pilot-qc.jsonl"
             write_jsonl(qc_path, [qc_record])
@@ -824,7 +813,7 @@ class BatchQcTests(unittest.TestCase):
                 batch.reconcile_qc(manifest, out, qc)
             write_jsonl(qc, [{
                 "id": "promo", "axis_scores": {"goal_fit": 5, "text_accuracy": 5, "material_realism": 5, "layout": 5},
-                "promo": {"physical_type_subject_interaction": False, "generic_card_regression": False, "printed_meta_ui_not_literal": True, "color_count": 3, "finishing_device_count": 2, "korean_glyph_mask_safe": True},
+                "promo": {"physical_type_subject_interaction": False, "generic_card_regression": False},
             }])
             retry = root / "retry.jsonl"
             summary = batch.reconcile_qc(manifest, out, qc, retry)

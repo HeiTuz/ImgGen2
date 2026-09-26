@@ -190,7 +190,8 @@ def load_manifest(path: Path, output_root: Path) -> tuple[list[BatchJob], str]:
     allowed = {
         "id", "prompt", "full_prompt", "output_path", "images", "promotional",
         "rendered_text_exists", "qc_required", "metadata", "series_locks", "retry_of", "retry_generation",
-        # MPW production JSONL fields retained as compile metadata.
+        # Older production JSONL keys stay as opaque compile metadata.
+        # They are not kit gates; promotional and text branches use generic signals.
         "category", "cut_type", "title", "format", "tier", "lane", "palette",
         "ar", "size", "quality", "output_format", "output_compression", "labels",
         "korean_copy", "status", "qa", "teaching_point", "promo_pattern",
@@ -250,6 +251,8 @@ def load_manifest(path: Path, output_root: Path) -> tuple[list[BatchJob], str]:
                 raise BatchError(f"Reference must be a non-symlink regular file for {job_id}: {raw}")
             images.append(ref)
         promotional = record.get("promotional", record.get("cut_type") == "promo_poster")
+        # Current MPW assembled output sets rendered_text_exists instead of a
+        # "Text-in-image:" label. Keep the label as a compatibility signal.
         inferred_text = bool(record.get("korean_copy") or record.get("labels") or "Text-in-image:" in prompt)
         rendered = record.get("rendered_text_exists", inferred_text)
         if not isinstance(promotional, bool) or not isinstance(rendered, bool):
