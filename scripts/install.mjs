@@ -62,7 +62,6 @@ function usage(code = 0) {
 
 Usage:
   bunx --package github:HeiTuz/ImgGen2 imggen-imggen2 -- [options]
-  npx --yes --allow-git=all --package github:HeiTuz/ImgGen2 imggen-imggen2 -- [options]
 
 Options:
   --component <choice>   imggen2, mpw, or all; prompts in a terminal, defaults to imggen2 otherwise
@@ -154,7 +153,7 @@ export async function selectComponent(options, { interactive = Boolean(process.s
 }
 
 export function mpwInstallArgs(plan, { force = false } = {}) {
-  const args = ["--yes", "--allow-git=all", "--package", "github:HeiTuz/MPW", "heituzmpw", "--"];
+  const args = ["--package", "github:HeiTuz/MPW", "heituzmpw", "--"];
   if (plan.host) args.push("--target", plan.host);
   args.push("--dest", plan.mpwTarget, "--quiet");
   if (force) args.push("--force");
@@ -581,8 +580,9 @@ export async function main(argv = args) {
     run(codexPlan.command, codexPlan.args, { dryRun: false, label: "official Codex CLI install" });
   }
   if (installPrompts) {
+    const bunCommand = helper.ensureBun(loc.windows);
     for (const plan of plans) {
-      const invocation = helper.packageInvocation(loc.windows, mpwInstallArgs(plan, options));
+      const invocation = helper.packageInvocation(loc.windows, mpwInstallArgs(plan, options), bunCommand);
       run(invocation.command, invocation.args, { dryRun: false, label: `MPW install${plan.host ? ` (${plan.host})` : ""}` });
       const manifest = JSON.parse(fs.readFileSync(path.join(plan.mpwTarget, "package.json"), "utf8"));
       if (manifest.name !== "heituzmpw" || !fs.existsSync(path.join(plan.mpwTarget, "SKILL.md"))) throw new Error("MPW installer did not materialize the expected skill.");

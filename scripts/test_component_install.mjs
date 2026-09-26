@@ -44,9 +44,9 @@ fs.mkdirSync(dest,{recursive:true});
 fs.writeFileSync(path.join(dest,'package.json'),JSON.stringify({name:'heituzmpw',version:'2.28.0'}));
 fs.writeFileSync(path.join(dest,'SKILL.md'),'---\\nname: mpw\\n---\\n');
 `);
-    for (const command of ["npx", "bunx", "python3", "python"]) {
-      const isPackageRunner = command === "npx" || command === "bunx";
-      fs.writeFileSync(path.join(bin, command), `#!/bin/sh\n${isPackageRunner ? 'exec "$IMGGEN_TEST_NODE" "$IMGGEN_TEST_MPW" "$@"' : 'exit 0'}\n`, { mode: 0o755 });
+    for (const command of ["bun", "python3", "python"]) {
+      const isPackageRunner = command === "bun";
+      fs.writeFileSync(path.join(bin, command), `#!/bin/sh\n${isPackageRunner ? 'if [ "$1" = "--version" ]; then echo 1.0.0; exit 0; fi\nshift\nexec "$IMGGEN_TEST_NODE" "$IMGGEN_TEST_MPW" "$@"' : 'exit 0'}\n`, { mode: 0o755 });
       fs.writeFileSync(path.join(bin, `${command}.cmd`), isPackageRunner ? '@"%IMGGEN_TEST_NODE%" "%IMGGEN_TEST_MPW%" %*\r\n' : '@exit /b 0\r\n');
     }
     for (const component of ["imggen2", "mpw", "all"]) {

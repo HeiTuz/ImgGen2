@@ -8,7 +8,7 @@ import { spawnSync } from "node:child_process";
 const IMGGEN_REPO = "github:HeiTuz/ImgGen2";
 const MPW_REPO = "github:HeiTuz/MPW";
 
-const REPAIR_COMMAND = "npx --yes --allow-git=all --package github:HeiTuz/ImgGen2 imggen-imggen2 -- --component imggen2 --force --register";
+const REPAIR_COMMAND = "bunx --package github:HeiTuz/ImgGen2 imggen-imggen2 -- --component imggen2 --force --register";
 export function selectedComponents(installation, requested = null) {
   if (requested !== null && !["imggen2", "mpw", "all"].includes(requested)) throw new Error("--component must be imggen2, mpw, or all");
   const values = requested !== null ? (requested === "all" ? ["imggen2", "mpw"] : [requested]) : (installation.components || ["imggen2"]);
@@ -187,21 +187,22 @@ export function installationHealth(manifest, loc = locations()) {
   };
 }
 
-export function npxInvocation(windows, args) {
-  // Windows cannot spawn npx.cmd directly without a shell (Node rejects .cmd
-  // spawns with EINVAL since the April 2024 security release); route through
-  // cmd.exe /c with an argument vector instead of shell string interpolation.
-  return windows
-    ? { command: "cmd.exe", args: ["/d", "/s", "/c", "npx", ...args] }
-    : { command: "npx", args };
+export function ensureBun(windows, { run = spawnSync, home = os.homedir() } = {}) {
+  if (run("bun", ["--version"], { stdio: "ignore" }).status === 0) return "bun";
+  const local = path.join(home, ".bun", "bin", windows ? "bun.exe" : "bun");
+  if (run(local, ["--version"], { stdio: "ignore" }).status === 0) return local;
+  const installer = windows
+    ? { command: "powershell.exe", args: ["-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", "irm https://bun.com/install.ps1 | iex"] }
+    : { command: "bash", args: ["-c", "curl -fsSL https://bun.com/install | bash"] };
+  const result = run(installer.command, installer.args, { stdio: "inherit" });
+  if (result.error || result.status !== 0 || run(local, ["--version"], { stdio: "ignore" }).status !== 0) {
+    throw new Error("Bun installation failed. See https://bun.com/docs/installation and retry.");
+  }
+  return local;
 }
 
-export function packageInvocation(windows, args, { bunAvailable = spawnSync("bun", ["--version"], { stdio: "ignore" }).status === 0 } = {}) {
-  if (!bunAvailable) return npxInvocation(windows, args);
-  const bunArgs = args.slice(2);
-  return windows
-    ? { command: "cmd.exe", args: ["/d", "/s", "/c", "bunx", ...bunArgs] }
-    : { command: "bunx", args: bunArgs };
+export function packageInvocation(_windows, args, bunCommand = "bun") {
+  return { command: bunCommand, args: ["x", ...args] };
 }
 
 export function codexExists(windows) {
@@ -252,7 +253,7 @@ Commands:
 }
 
 export function imggenUpdateArgs(manifest, { interactive }) {
-  const args = ["--yes", "--allow-git=all", "--package", IMGGEN_REPO, "imggen-imggen2", "--", "--component", "imggen2"];
+  const args = ["--package", IMGGEN_REPO, "imggen-imggen2", "--", "--component", "imggen2"];
   if (manifest.agent_host) args.push("--agent", manifest.agent_host);
   args.push("--target", manifest.imggen2_target, "--force", "--skip-codex", "--no-register");
   // Per-host saved QC settings remain owned by the installed configuration.
@@ -278,17 +279,18 @@ export function update(manifest, { dryRun, forceCodex, component = null, interac
     const plan = codexInstallCommand(windows);
     run(plan.command, plan.args, { dryRun, label: "official Codex CLI install/update" });
   }
+  const bunCommand = dryRun ? "bun" : ensureBun(windows);
   for (const installation of installations) {
     const hostLabel = installation.agent_host ? ` (${installation.agent_host})` : "";
     if (installation.components.includes("imggen2")) {
-      const imggen = packageInvocation(windows, imggenUpdateArgs(installation, { interactive }));
+      const imggen = packageInvocation(windows, imggenUpdateArgs(installation, { interactive }), bunCommand);
       run(imggen.command, imggen.args, { dryRun, label: `ImgGen2 update${hostLabel}` });
     }
     if (installation.components.includes("mpw")) {
-      const mpwArgs = ["--yes", "--allow-git=all", "--package", MPW_REPO, "heituzmpw", "--"];
+      const mpwArgs = ["--package", MPW_REPO, "heituzmpw", "--"];
       if (installation.agent_host) mpwArgs.push("--target", installation.agent_host);
       mpwArgs.push("--dest", installation.mpw_target, "--force", "--quiet");
-      const mpw = packageInvocation(windows, mpwArgs);
+      const mpw = packageInvocation(windows, mpwArgs, bunCommand);
       run(mpw.command, mpw.args, { dryRun, label: `MPW update${hostLabel}` });
     }
   }

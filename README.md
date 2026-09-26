@@ -52,11 +52,7 @@ bunx --package github:HeiTuz/ImgGen2 imggen-imggen2 -- --component mpw
 bunx --package github:HeiTuz/ImgGen2 imggen-imggen2 -- --component all
 ```
 
-Node/npm을 사용한다면 다음 명령을 사용합니다. npm 12의 GitHub 설치 정책에 맞춰 `--allow-git=all`을 **이 명령에만** 적용하며 전역 설정은 변경하지 않습니다. [npm 공식 설정 문서](https://docs.npmjs.com/using-npm/config/#allow-git)
-
-```sh
-npx --yes --allow-git=all --package github:HeiTuz/ImgGen2 imggen-imggen2 -- --component all
-```
+Bun이 없으면 [공식 설치기](https://bun.com/docs/installation)로 최신 안정판을 설치합니다. macOS/Linux는 `curl -fsSL https://bun.com/install | bash`, Windows는 `powershell -c "irm bun.sh/install.ps1|iex"`입니다. 설치 후 위 `bunx` 명령을 실행하세요. `imggen update`와 통합 설치기의 MPW 단계는 Bun이 없으면 공식 설치기를 자동 실행합니다.
 
 **CI·비대화형 실행과 `--dry-run`은 질문하지 않습니다.** 선택을 생략하면 ImgGen2만 설치합니다. 자동화에서는 `--component`와 `--agent`를 함께 지정하세요. 이미 설치된 스킬을 교체할 때만 `--force`를 붙입니다.
 
@@ -194,7 +190,7 @@ imggen update --component all
 imggen update --component all --dry-run
 ```
 
-`imggen update`는 Bun이 있으면 `bunx`로 두 공개 스킬을 갱신하고, Bun이 없으면 기존 `npx` 경로를 사용합니다.
+`imggen update`는 Bun으로 두 공개 스킬을 갱신합니다. Bun이 없으면 공식 설치기를 통해 최신 안정판을 먼저 설치합니다.
 
 다시 등록하면 이번에 고른 호스트·구성요소가 `imggen`의 갱신 대상으로 저장됩니다. MPW만 설치하면 이 등록은 변경하지 않습니다.
 

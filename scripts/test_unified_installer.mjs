@@ -13,7 +13,7 @@ if (!fs.existsSync(path.join(root, "agents", "hermes", "README.md"))) {
 }
 const temp = fs.mkdtempSync(path.join(os.tmpdir(), "imggen-unified-"));
 process.env.HEITUZ_INSTALLER_IMPORT = "1";
-const { imggenUpdateArgs, isTransientWindowsPath, npxInvocation, packageInvocation, repairLegacyManifest } = await import("./imggen.mjs");
+const { ensureBun, imggenUpdateArgs, isTransientWindowsPath, packageInvocation, repairLegacyManifest } = await import("./imggen.mjs");
 const { migrateLegacyInstallPaths } = await import("./install.mjs");
 delete process.env.HEITUZ_INSTALLER_IMPORT;
 
@@ -56,13 +56,25 @@ try {
   assert.equal(interactiveUpdate.includes("--vision-qc"), false);
   const automatedUpdate = imggenUpdateArgs(updateManifest, { interactive: false });
   assert.equal(automatedUpdate.includes("--vision-qc"), false);
-  // Windows cannot spawn npx.cmd without a shell; the invocation must route through cmd.exe /c.
-  assert.deepEqual(npxInvocation(true, ["--yes", "pkg"]), { command: "cmd.exe", args: ["/d", "/s", "/c", "npx", "--yes", "pkg"] });
-  assert.deepEqual(npxInvocation(false, ["--yes", "pkg"]), { command: "npx", args: ["--yes", "pkg"] });
-  const packageArgs = ["--yes", "--allow-git=all", "--package", "github:HeiTuz/MPW", "heituzmpw", "--", "--target", "codex"];
-  assert.deepEqual(packageInvocation(false, packageArgs, { bunAvailable: true }), { command: "bunx", args: packageArgs.slice(2) });
-  assert.deepEqual(packageInvocation(true, packageArgs, { bunAvailable: true }), { command: "cmd.exe", args: ["/d", "/s", "/c", "bunx", ...packageArgs.slice(2)] });
-  assert.deepEqual(packageInvocation(false, packageArgs, { bunAvailable: false }), npxInvocation(false, packageArgs));
+  const packageArgs = ["--package", "github:HeiTuz/MPW", "heituzmpw", "--", "--target", "codex"];
+  assert.deepEqual(packageInvocation(false, packageArgs), { command: "bun", args: ["x", ...packageArgs] });
+  assert.deepEqual(packageInvocation(true, packageArgs, "C:\\Users\\alice\\.bun\\bin\\bun.exe"), { command: "C:\\Users\\alice\\.bun\\bin\\bun.exe", args: ["x", ...packageArgs] });
+  for (const windows of [false, true]) {
+    const calls = [];
+    let localChecks = 0;
+    const home = windows ? "C:\\Users\\alice" : "/tmp/alice";
+    const installed = ensureBun(windows, { home, run(command, args) {
+      calls.push([command, args]);
+      if (command === "bun") return { status: 1 };
+      if (command === "bash" || command === "powershell.exe") return { status: 0 };
+      localChecks += 1;
+      return { status: localChecks === 1 ? 1 : 0 };
+    } });
+    assert.match(installed, /\.bun[/\\]bin[/\\]bun(?:\.exe)?$/u);
+    assert.equal(calls.length, 4);
+    assert.match(calls[2][1].at(-1), /bun\.com\/install/u);
+  }
+  assert.throws(() => ensureBun(false, { home: "/tmp/alice", run: () => ({ status: 1 }) }), /Bun installation failed/u);
   assert.equal(isTransientWindowsPath("C:\\Users\\alice\\AppData\\Local\\Temp\\_npx\\123\\package", { TEMP: "C:\\Users\\alice\\AppData\\Local\\Temp" }), true);
   assert.equal(isTransientWindowsPath("C:\\Users\\alice\\.hermes\\skills\\ImgGen2", { TEMP: "C:\\Users\\alice\\AppData\\Local\\Temp" }), false);
   const repairHome = path.join(temp, "repair-home");
@@ -74,7 +86,7 @@ try {
   assert.equal(repairLegacyManifest(legacy, { home: repairHome, windows: false }).installations[0].agent_host, "hermes");
   assert.throws(
     () => repairLegacyManifest({ ...legacy, imggen2_target: path.join(repairHome, "custom") }, { home: repairHome, windows: false }),
-    /Repair with: npx/u,
+    /Repair with: bunx/u,
   );
   assert.throws(
     () => repairLegacyManifest({
@@ -82,7 +94,7 @@ try {
       imggen2_target: "C:\\Users\\alice\\AppData\\Local\\Temp\\_npx\\123\\package",
       mpw_target: "C:\\Users\\alice\\.hermes\\skills\\prompt-writing\\MPW",
     }, { home: "C:\\Users\\alice", windows: true, env: { TEMP: "C:\\Users\\alice\\AppData\\Local\\Temp" } }),
-    /transient.*Repair with: npx --yes --allow-git=all --package github:HeiTuz\/ImgGen2 imggen-imggen2/iu,
+    /transient.*Repair with: bunx --package github:HeiTuz\/ImgGen2 imggen-imggen2/iu,
   );
   const plan = invoke(["scripts/install.mjs", "--dry-run"], { HEITUZ_TEST_PLATFORM: "win32", LOCALAPPDATA: path.join(temp, "local"), APPDATA: path.join(temp, "roaming") });
   assert.match(plan, /powershell\.exe/);
@@ -281,7 +293,7 @@ try {
   assert.equal(typeof degradedStatus.target_status[0].imggen2_version, "string");
   assert.equal(degradedStatus.target_status[0].mpw_version, null);
   assert.equal(degradedStatus.active_hermes.registered, false);
-  assert.match(degradedStatus.repair_recommendation, /^npx --yes /u);
+  assert.match(degradedStatus.repair_recommendation, /^bunx --package /u);
   assert.equal(degradedStatus.launcher_surfaces.cmd, windowsLauncher);
   assert.equal(degradedStatus.launcher_surfaces.powershell, windowsPowerShellLauncher);
   assert.equal(degradedStatus.launcher_surfaces.git_bash, gitBashLauncher);
