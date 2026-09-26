@@ -196,6 +196,14 @@ export function npxInvocation(windows, args) {
     : { command: "npx", args };
 }
 
+export function packageInvocation(windows, args, { bunAvailable = spawnSync("bun", ["--version"], { stdio: "ignore" }).status === 0 } = {}) {
+  if (!bunAvailable) return npxInvocation(windows, args);
+  const bunArgs = args.slice(2);
+  return windows
+    ? { command: "cmd.exe", args: ["/d", "/s", "/c", "bunx", ...bunArgs] }
+    : { command: "bunx", args: bunArgs };
+}
+
 export function codexExists(windows) {
   const home = os.homedir();
   const installDir = process.env.CODEX_INSTALL_DIR;
@@ -273,14 +281,14 @@ export function update(manifest, { dryRun, forceCodex, component = null, interac
   for (const installation of installations) {
     const hostLabel = installation.agent_host ? ` (${installation.agent_host})` : "";
     if (installation.components.includes("imggen2")) {
-      const imggen = npxInvocation(windows, imggenUpdateArgs(installation, { interactive }));
+      const imggen = packageInvocation(windows, imggenUpdateArgs(installation, { interactive }));
       run(imggen.command, imggen.args, { dryRun, label: `ImgGen2 update${hostLabel}` });
     }
     if (installation.components.includes("mpw")) {
       const mpwArgs = ["--yes", "--allow-git=all", "--package", MPW_REPO, "heituzmpw", "--"];
       if (installation.agent_host) mpwArgs.push("--target", installation.agent_host);
       mpwArgs.push("--dest", installation.mpw_target, "--force", "--quiet");
-      const mpw = npxInvocation(windows, mpwArgs);
+      const mpw = packageInvocation(windows, mpwArgs);
       run(mpw.command, mpw.args, { dryRun, label: `MPW update${hostLabel}` });
     }
   }

@@ -13,7 +13,7 @@ if (!fs.existsSync(path.join(root, "agents", "hermes", "README.md"))) {
 }
 const temp = fs.mkdtempSync(path.join(os.tmpdir(), "imggen-unified-"));
 process.env.HEITUZ_INSTALLER_IMPORT = "1";
-const { imggenUpdateArgs, isTransientWindowsPath, npxInvocation, repairLegacyManifest } = await import("./imggen.mjs");
+const { imggenUpdateArgs, isTransientWindowsPath, npxInvocation, packageInvocation, repairLegacyManifest } = await import("./imggen.mjs");
 const { migrateLegacyInstallPaths } = await import("./install.mjs");
 delete process.env.HEITUZ_INSTALLER_IMPORT;
 
@@ -59,6 +59,10 @@ try {
   // Windows cannot spawn npx.cmd without a shell; the invocation must route through cmd.exe /c.
   assert.deepEqual(npxInvocation(true, ["--yes", "pkg"]), { command: "cmd.exe", args: ["/d", "/s", "/c", "npx", "--yes", "pkg"] });
   assert.deepEqual(npxInvocation(false, ["--yes", "pkg"]), { command: "npx", args: ["--yes", "pkg"] });
+  const packageArgs = ["--yes", "--allow-git=all", "--package", "github:HeiTuz/MPW", "heituzmpw", "--", "--target", "codex"];
+  assert.deepEqual(packageInvocation(false, packageArgs, { bunAvailable: true }), { command: "bunx", args: packageArgs.slice(2) });
+  assert.deepEqual(packageInvocation(true, packageArgs, { bunAvailable: true }), { command: "cmd.exe", args: ["/d", "/s", "/c", "bunx", ...packageArgs.slice(2)] });
+  assert.deepEqual(packageInvocation(false, packageArgs, { bunAvailable: false }), npxInvocation(false, packageArgs));
   assert.equal(isTransientWindowsPath("C:\\Users\\alice\\AppData\\Local\\Temp\\_npx\\123\\package", { TEMP: "C:\\Users\\alice\\AppData\\Local\\Temp" }), true);
   assert.equal(isTransientWindowsPath("C:\\Users\\alice\\.hermes\\skills\\ImgGen2", { TEMP: "C:\\Users\\alice\\AppData\\Local\\Temp" }), false);
   const repairHome = path.join(temp, "repair-home");

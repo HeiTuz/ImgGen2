@@ -44,10 +44,10 @@ fs.mkdirSync(dest,{recursive:true});
 fs.writeFileSync(path.join(dest,'package.json'),JSON.stringify({name:'heituzmpw',version:'2.28.0'}));
 fs.writeFileSync(path.join(dest,'SKILL.md'),'---\\nname: mpw\\n---\\n');
 `);
-    for (const command of ["npx", "python3", "python"]) {
-      const isNpx = command === "npx";
-      fs.writeFileSync(path.join(bin, command), `#!/bin/sh\n${isNpx ? 'exec "$IMGGEN_TEST_NODE" "$IMGGEN_TEST_MPW" "$@"' : 'exit 0'}\n`, { mode: 0o755 });
-      fs.writeFileSync(path.join(bin, `${command}.cmd`), isNpx ? '@"%IMGGEN_TEST_NODE%" "%IMGGEN_TEST_MPW%" %*\r\n' : '@exit /b 0\r\n');
+    for (const command of ["npx", "bunx", "python3", "python"]) {
+      const isPackageRunner = command === "npx" || command === "bunx";
+      fs.writeFileSync(path.join(bin, command), `#!/bin/sh\n${isPackageRunner ? 'exec "$IMGGEN_TEST_NODE" "$IMGGEN_TEST_MPW" "$@"' : 'exit 0'}\n`, { mode: 0o755 });
+      fs.writeFileSync(path.join(bin, `${command}.cmd`), isPackageRunner ? '@"%IMGGEN_TEST_NODE%" "%IMGGEN_TEST_MPW%" %*\r\n' : '@exit /b 0\r\n');
     }
     for (const component of ["imggen2", "mpw", "all"]) {
       const home = path.join(temp, component); fs.mkdirSync(home);
@@ -64,7 +64,7 @@ fs.writeFileSync(path.join(dest,'SKILL.md'),'---\\nname: mpw\\n---\\n');
       assert.equal(fs.existsSync(path.join(home, ".config/imggen/installation.json")), false);
       if (component !== "imggen2") {
         const call = JSON.parse(fs.readFileSync(calls, "utf8").trim());
-        assert.deepEqual(call.slice(0, 6), ["--yes", "--allow-git=all", "--package", "github:HeiTuz/MPW", "heituzmpw", "--"]);
+        assert.deepEqual(call.slice(0, 4), ["--package", "github:HeiTuz/MPW", "heituzmpw", "--"]);
         assert.equal(call.includes("--force"), false);
         const health = installationHealth({ components: ["mpw"], imggen2_target: images, mpw_target: prompts });
         assert.equal(health.healthy, true, health.problems.join(", "));

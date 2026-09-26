@@ -61,8 +61,8 @@ function usage(code = 0) {
   out(`ImgGen2 unified installer
 
 Usage:
-  npx --yes --allow-git=all --package github:HeiTuz/ImgGen2 imggen-imggen2 -- [options]
   bunx --package github:HeiTuz/ImgGen2 imggen-imggen2 -- [options]
+  npx --yes --allow-git=all --package github:HeiTuz/ImgGen2 imggen-imggen2 -- [options]
 
 Options:
   --component <choice>   imggen2, mpw, or all; prompts in a terminal, defaults to imggen2 otherwise
@@ -582,7 +582,7 @@ export async function main(argv = args) {
   }
   if (installPrompts) {
     for (const plan of plans) {
-      const invocation = helper.npxInvocation(loc.windows, mpwInstallArgs(plan, options));
+      const invocation = helper.packageInvocation(loc.windows, mpwInstallArgs(plan, options));
       run(invocation.command, invocation.args, { dryRun: false, label: `MPW install${plan.host ? ` (${plan.host})` : ""}` });
       const manifest = JSON.parse(fs.readFileSync(path.join(plan.mpwTarget, "package.json"), "utf8"));
       if (manifest.name !== "heituzmpw" || !fs.existsSync(path.join(plan.mpwTarget, "SKILL.md"))) throw new Error("MPW installer did not materialize the expected skill.");
