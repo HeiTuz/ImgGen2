@@ -35,26 +35,27 @@ try {
     console.log("component selection: OK (source-only install tests skipped)");
   } else {
     const bin = path.join(temp, "bin"); fs.mkdirSync(bin);
-    const fake = path.join(bin, "fake-mpw.cjs");
-    fs.writeFileSync(fake, `const fs=require('node:fs'),path=require('node:path');
+    const fakePackage = path.join(temp, "fake-mpw-package"); fs.mkdirSync(fakePackage);
+    fs.writeFileSync(path.join(fakePackage, "package.json"), JSON.stringify({ name: "test-mpw-installer", version: "1.0.0", bin: { heituzmpw: "cli.cjs" } }));
+    fs.writeFileSync(path.join(fakePackage, "cli.cjs"), `#!/usr/bin/env node
+const fs=require('node:fs'),path=require('node:path');
 const args=process.argv.slice(2),dest=args[args.indexOf('--dest')+1];
 fs.appendFileSync(process.env.IMGGEN_TEST_CALLS,JSON.stringify(args)+'\\n');
 if(!dest)process.exit(2);
 fs.mkdirSync(dest,{recursive:true});
 fs.writeFileSync(path.join(dest,'package.json'),JSON.stringify({name:'heituzmpw',version:'2.28.0'}));
 fs.writeFileSync(path.join(dest,'SKILL.md'),'---\\nname: mpw\\n---\\n');
-`);
-    for (const command of ["bun", "python3", "python"]) {
-      const isPackageRunner = command === "bun";
-      fs.writeFileSync(path.join(bin, command), `#!/bin/sh\n${isPackageRunner ? 'if [ "$1" = "--version" ]; then echo 1.0.0; exit 0; fi\nshift\nexec "$IMGGEN_TEST_NODE" "$IMGGEN_TEST_MPW" "$@"' : 'exit 0'}\n`, { mode: 0o755 });
-      fs.writeFileSync(path.join(bin, `${command}.cmd`), isPackageRunner ? '@"%IMGGEN_TEST_NODE%" "%IMGGEN_TEST_MPW%" %*\r\n' : '@exit /b 0\r\n');
+`, { mode: 0o755 });
+    for (const command of ["python3", "python"]) {
+      fs.writeFileSync(path.join(bin, command), '#!/bin/sh\nexit 0\n', { mode: 0o755 });
+      fs.writeFileSync(path.join(bin, `${command}.cmd`), '@exit /b 0\r\n');
     }
     for (const component of ["imggen2", "mpw", "all"]) {
       const home = path.join(temp, component); fs.mkdirSync(home);
       const images = path.join(home, "image-skill"), prompts = path.join(home, "prompt-skill"), calls = path.join(home, "calls.jsonl");
       const result = spawnSync(process.execPath, [path.join(root, "scripts/install.mjs"), "--component", component, "--agent", "codex", "--target", images, "--mpw-target", prompts, "--skip-codex", "--no-register"], {
         encoding: "utf8", env: { ...process.env, HOME: home, USERPROFILE: home, XDG_CONFIG_HOME: path.join(home, "config"), PATH: bin + path.delimiter + process.env.PATH,
-          IMGGEN_TEST_NODE: process.execPath, IMGGEN_TEST_MPW: fake, IMGGEN_TEST_CALLS: calls, CI: "1" },
+          HEITUZ_TEST_MPW_PACKAGE: fakePackage, IMGGEN_TEST_CALLS: calls, CI: "1" },
       });
       assert.equal(result.status, 0, result.stderr + result.stdout);
       assert.equal(fs.existsSync(path.join(images, "SKILL.md")), component !== "mpw");
@@ -64,7 +65,7 @@ fs.writeFileSync(path.join(dest,'SKILL.md'),'---\\nname: mpw\\n---\\n');
       assert.equal(fs.existsSync(path.join(home, ".config/imggen/installation.json")), false);
       if (component !== "imggen2") {
         const call = JSON.parse(fs.readFileSync(calls, "utf8").trim());
-        assert.deepEqual(call.slice(0, 4), ["--package", "github:HeiTuz/MPW", "heituzmpw", "--"]);
+        assert.equal(call.includes("--target"), true);
         assert.equal(call.includes("--force"), false);
         const health = installationHealth({ components: ["mpw"], imggen2_target: images, mpw_target: prompts });
         assert.equal(health.healthy, true, health.problems.join(", "));

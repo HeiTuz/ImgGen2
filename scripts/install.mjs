@@ -153,7 +153,8 @@ export async function selectComponent(options, { interactive = Boolean(process.s
 }
 
 export function mpwInstallArgs(plan, { force = false } = {}) {
-  const args = ["--package", "github:HeiTuz/MPW", "heituzmpw", "--"];
+  const mpwPackage = process.env.CI === "1" && process.env.HEITUZ_TEST_MPW_PACKAGE || "github:HeiTuz/MPW";
+  const args = ["--package", mpwPackage, "heituzmpw", "--"];
   if (plan.host) args.push("--target", plan.host);
   args.push("--dest", plan.mpwTarget, "--quiet");
   if (force) args.push("--force");
