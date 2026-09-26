@@ -63,7 +63,7 @@ try {
     const calls = [];
     let localChecks = 0;
     const home = windows ? "C:\\Users\\alice" : "/tmp/alice";
-    const installed = ensureBun(windows, { home, run(command, args) {
+    const installed = ensureBun(windows, { home, env: {}, run(command, args) {
       calls.push([command, args]);
       if (command === "bun") return { status: 1 };
       if (command === "bash" || command === "powershell.exe") return { status: 0 };
@@ -74,7 +74,8 @@ try {
     assert.equal(calls.length, 4);
     assert.match(calls[2][1].at(-1), /bun\.com\/install/u);
   }
-  assert.throws(() => ensureBun(false, { home: "/tmp/alice", run: () => ({ status: 1 }) }), /Bun installation failed/u);
+  assert.throws(() => ensureBun(false, { home: "/tmp/alice", env: {}, run: () => ({ status: 1 }) }), /Bun installation failed/u);
+  assert.equal(ensureBun(false, { home: "/tmp/alice", env: { BUN_INSTALL: "/tmp/custom-bun" }, run: (command) => ({ status: command === "/tmp/custom-bun/bin/bun" ? 0 : 1 }) }), "/tmp/custom-bun/bin/bun");
   assert.equal(isTransientWindowsPath("C:\\Users\\alice\\AppData\\Local\\Temp\\_npx\\123\\package", { TEMP: "C:\\Users\\alice\\AppData\\Local\\Temp" }), true);
   assert.equal(isTransientWindowsPath("C:\\Users\\alice\\.hermes\\skills\\ImgGen2", { TEMP: "C:\\Users\\alice\\AppData\\Local\\Temp" }), false);
   const repairHome = path.join(temp, "repair-home");

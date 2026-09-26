@@ -187,9 +187,9 @@ export function installationHealth(manifest, loc = locations()) {
   };
 }
 
-export function ensureBun(windows, { run = spawnSync, home = os.homedir() } = {}) {
+export function ensureBun(windows, { run = spawnSync, home = os.homedir(), env = process.env } = {}) {
   if (run("bun", ["--version"], { stdio: "ignore" }).status === 0) return "bun";
-  const local = path.join(home, ".bun", "bin", windows ? "bun.exe" : "bun");
+  const local = path.join(env.BUN_INSTALL || path.join(home, ".bun"), "bin", windows ? "bun.exe" : "bun");
   if (run(local, ["--version"], { stdio: "ignore" }).status === 0) return local;
   const installer = windows
     ? { command: "powershell.exe", args: ["-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", "irm https://bun.com/install.ps1 | iex"] }

@@ -52,7 +52,17 @@ bunx --package github:HeiTuz/ImgGen2 imggen-imggen2 -- --component mpw
 bunx --package github:HeiTuz/ImgGen2 imggen-imggen2 -- --component all
 ```
 
-Bun이 없으면 [공식 설치기](https://bun.com/docs/installation)로 최신 안정판을 설치합니다. macOS/Linux는 `curl -fsSL https://bun.com/install | bash`, Windows는 `powershell -c "irm bun.sh/install.ps1|iex"`입니다. 설치 후 위 `bunx` 명령을 실행하세요. `imggen update`와 통합 설치기의 MPW 단계는 Bun이 없으면 공식 설치기를 자동 실행합니다.
+Bun이 없는 새 환경에서는 아래 명령이 [공식 설치기](https://bun.com/docs/installation)로 최신 안정판을 설치하고 곧바로 ImgGen2를 설치합니다. 이미 Bun이 있으면 그대로 사용합니다. `imggen update`와 통합 설치기의 MPW 단계도 Bun이 없으면 공식 설치기를 자동 실행합니다.
+
+```sh
+bun_cmd="$(command -v bun || true)"; if [ -z "$bun_cmd" ]; then curl -fsSL https://bun.com/install | bash; bun_cmd="${BUN_INSTALL:-$HOME/.bun}/bin/bun"; fi; "$bun_cmd" x --package github:HeiTuz/ImgGen2 imggen-imggen2
+```
+
+Windows PowerShell:
+
+```powershell
+$bun = (Get-Command bun -ErrorAction SilentlyContinue).Source; if (!$bun) { irm https://bun.com/install.ps1 | iex; $root = if ($env:BUN_INSTALL) { $env:BUN_INSTALL } else { "$HOME\.bun" }; $bun = Join-Path $root 'bin\bun.exe' }; & $bun x --package github:HeiTuz/ImgGen2 imggen-imggen2
+```
 
 **CI·비대화형 실행과 `--dry-run`은 질문하지 않습니다.** 선택을 생략하면 ImgGen2만 설치합니다. 자동화에서는 `--component`와 `--agent`를 함께 지정하세요. 이미 설치된 스킬을 교체할 때만 `--force`를 붙입니다.
 
