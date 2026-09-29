@@ -64,21 +64,21 @@ Usage:
   bunx --package github:HeiTuz/ImgGen2 imggen-imggen2 -- [options]
 
 Options:
-  --component <choice>   imggen2, mpw, or all; prompts in a terminal, defaults to imggen2 otherwise
-  --agent <host>         Agent host: auto (default), all, hermes, claude, or codex
+  --component <choice>   imggen2 (default); mpw or all only print MPW plugin guidance
+  --agent <host>         Agent host: auto (default), all, claude, or codex
   --target <directory>   Explicit ImgGen2 installation directory
-  --mpw-target <dir>     Explicit MPW installation directory
   --force                Replace existing destinations for the selected components
   --skip-codex           Do not install/update the official Codex CLI
   --skip-mpw             Compatibility alias for --component imggen2
   --vision-qc <mode>     Configure QC: auto (host default Vision model) or off
   --dry-run              Print the platform plan without writing or downloading
-  --offline              Copy ImgGen2 locally; MPW requires online installation
+  --offline              Copy ImgGen2 locally without network installs
   --register             Also register the global imggen launcher/manifest (default for non-offline installs)
   --no-register          Copy files only; leave the global launcher, manifest, and shell profiles untouched
   -h, --help             Show this help
 
-After ImgGen2 install: imggen update [--component imggen2|mpw|all] [--dry-run] [--codex]
+After ImgGen2 install: imggen update [--dry-run] [--codex]
+MPW prompt writing is the separate plugin mpw@heituz: https://github.com/HeiTuz/heituz-plugins
 `);
   process.exit(code);
 }
@@ -135,30 +135,9 @@ export function parse(argv) {
   return options;
 }
 
-export async function selectComponent(options, { interactive = Boolean(process.stdin.isTTY && process.stdout.isTTY && !process.env.CI), ask } = {}) {
-  if (options.component) return options.component;
-  if (options.skipMpw || options.offline || options.dryRun || !interactive) return "imggen2";
-  const prompt = "\nChoose what to install:\n  1  ImgGen2 — image production\n  2  MPW     — prompt writing\n  3  Both    — same agent host\nSelection [1]: ";
-  let terminal;
-  try {
-    const question = ask || ((text) => {
-      terminal = readline.createInterface({ input: process.stdin, output: process.stdout });
-      return terminal.question(text);
-    });
-    const answer = (await question(prompt)).trim().toLowerCase();
-    const selected = ({ "": "imggen2", "1": "imggen2", "2": "mpw", "3": "all" })[answer] || answer;
-    if (!COMPONENTS.has(selected)) throw new Error("Choose 1 (ImgGen2), 2 (MPW), or 3 (both).");
-    return selected;
-  } finally { terminal?.close(); }
-}
-
-export function mpwInstallArgs(plan, { force = false } = {}) {
-  const mpwPackage = process.env.CI === "1" && process.env.HEITUZ_TEST_MPW_PACKAGE || "github:HeiTuz/MPW";
-  const args = ["--package", mpwPackage, "heituzmpw", "--"];
-  if (plan.host) args.push("--target", plan.host);
-  args.push("--dest", plan.mpwTarget, "--quiet");
-  if (force) args.push("--force");
-  return args;
+export async function selectComponent(options) {
+  // MPW moved to the mpw@heituz plugin; ImgGen2 installs only itself.
+  return options.component || "imggen2";
 }
 
 const EXCLUDED_PARTS = new Set([".git", ".gjc", ".omx", "node_modules", "docs-internal", "__pycache__"]);
@@ -238,7 +217,7 @@ function validateHostOverlay(sourceRoot, host) {
   if (!fs.existsSync(overlay) || !fs.statSync(overlay).isDirectory()) {
     throw new Error(`Install source is missing the ${normalized} agent overlay`);
   }
-  if (normalized !== "hermes" && !fs.existsSync(path.join(overlay, "SKILL.md"))) {
+  if (!fs.existsSync(path.join(overlay, "SKILL.md"))) {
     throw new Error(`Install source is missing agents/${normalized}/SKILL.md`);
   }
   const allowed = new Set(["AGENTS.md", "README.md", "SKILL.md"]);
@@ -321,17 +300,11 @@ export function migrateLegacyInstallPaths(home, loc, { dryRun = false, component
   const legacyConfig = loc.windows
     ? path.join(process.env.APPDATA || path.join(home, "AppData", "Roaming"), "HeiTuz")
     : path.join(process.env.XDG_CONFIG_HOME || path.join(home, ".config"), "heituz");
-  const legacyImgGen = path.join(home, ".hermes", "skills", "HeiTuzImgGen2");
-  const legacyImgGenLower = path.join(home, ".hermes", "skills", "HeiTuzimgGen2");
-  const legacyMpw = path.join(home, ".hermes", "skills", "prompt-writing", "HeiTuzMPW");
   const moves = [
     [legacyConfig, loc.config, "ImgGen2 config"],
-    [legacyImgGen, path.join(home, ".hermes", "skills", "ImgGen2"), "ImgGen2 skill"],
-    [legacyImgGenLower, path.join(home, ".hermes", "skills", "ImgGen2"), "ImgGen2 skill"],
-    [legacyMpw, path.join(home, ".hermes", "skills", "prompt-writing", "MPW"), "MPW skill"],
   ];
   const seen = new Set();
-  return moves.filter(([, , label]) => label === "MPW skill" ? component !== "imggen2" : component !== "mpw").filter(([from, to, label]) => {
+  return moves.filter(([from, to, label]) => {
     if (!fs.existsSync(from)) return false;
     const info = fs.statSync(from);
     const identity = `${info.dev}:${info.ino}`;
@@ -345,42 +318,17 @@ export function migrateLegacyInstallPaths(home, loc, { dryRun = false, component
 export function hostInstallPlan(homeDir, host) {
   const normalized = normalizeAgentHost(host);
   if (!AGENT_HOST_PRIORITY.includes(normalized)) throw new Error(`Unsupported agent host: ${host}`);
-  if (normalized === "hermes") {
-    return {
-      host: normalized,
-      destination: path.resolve(path.join(homeDir, ".hermes", "skills", "ImgGen2")),
-      mpwTarget: path.resolve(path.join(homeDir, ".hermes", "skills", "prompt-writing", "MPW")),
-    };
-  }
   return {
     host: normalized,
     destination: path.resolve(path.join(homeDir, `.${normalized}`, "skills", "ImgGen2")),
-    mpwTarget: path.resolve(path.join(homeDir, `.${normalized}`, "skills", "MPW")),
   };
 }
 
-function inferHostFromDestinations(homeDir, destination, mpwTarget) {
+function inferHostFromDestination(homeDir, destination) {
   for (const host of AGENT_HOST_PRIORITY) {
-    const known = hostInstallPlan(homeDir, host);
-    const imgMatches = path.normalize(destination) === path.normalize(known.destination);
-    const mpwMatches = path.normalize(mpwTarget) === path.normalize(known.mpwTarget);
-    if (imgMatches && mpwMatches) return host;
+    if (destination && path.normalize(destination) === path.normalize(hostInstallPlan(homeDir, host).destination)) return host;
   }
   return null;
-}
-
-function inferHostFromProvidedDestinations(homeDir, destination, mpwTarget) {
-  const matches = [];
-  for (const host of AGENT_HOST_PRIORITY) {
-    const known = hostInstallPlan(homeDir, host);
-    if ((destination && path.normalize(destination) === path.normalize(known.destination)) ||
-        (mpwTarget && path.normalize(mpwTarget) === path.normalize(known.mpwTarget))) {
-      matches.push(host);
-    }
-  }
-  const unique = [...new Set(matches)];
-  if (unique.length > 1) throw new Error("Explicit ImgGen2 and MPW targets select different agent hosts");
-  return unique[0] || null;
 }
 
 async function chooseInteractiveHosts(detected) {
@@ -396,21 +344,17 @@ async function chooseInteractiveHosts(detected) {
 }
 
 async function resolveInstallPlans(options, homeDir) {
-  if (options.target || options.mpwTarget) {
+  if (options.target) {
     const explicitHost = options.agentExplicit && !["auto", "all"].includes(options.agent)
       ? normalizeAgentHost(options.agent)
       : null;
-    const providedDestination = options.target ? normalizeInstallerPath(options.target) : null;
-    const providedMpwTarget = options.mpwTarget ? normalizeInstallerPath(options.mpwTarget) : null;
-    const inferredHost = inferHostFromProvidedDestinations(homeDir, providedDestination, providedMpwTarget);
+    const destination = normalizeInstallerPath(options.target);
+    const inferredHost = inferHostFromDestination(homeDir, destination);
     if (explicitHost && inferredHost && explicitHost !== inferredHost) {
       throw new Error("Explicit --agent conflicts with the supplied installation directory");
     }
-    const host = explicitHost || inferredHost;
-    const defaults = hostInstallPlan(homeDir, host || "hermes");
-    const destination = providedDestination || defaults.destination;
-    const mpwTarget = providedMpwTarget || defaults.mpwTarget;
-    return [{ host: host || inferHostFromDestinations(homeDir, destination, mpwTarget), destination, mpwTarget }];
+    if (explicitHost) hostInstallPlan(homeDir, explicitHost);
+    return [{ host: explicitHost || inferredHost, destination }];
   }
   const detected = detectAgentHosts({ homeDir, existsSync: fs.existsSync });
   const interactive = options.agent === "auto" && process.stdin.isTTY && process.stdout.isTTY && !process.env.CI;
@@ -447,7 +391,7 @@ function validateDestination(destination, loc) {
 }
 
 function prepareInstallPlans(plans, force, loc, components = ["imggen2"]) {
-  const destinations = plans.flatMap((plan) => components.map((component) => component === "mpw" ? plan.mpwTarget : plan.destination));
+  const destinations = plans.map((plan) => plan.destination);
   for (let index = 0; index < destinations.length; index += 1) {
     const destination = destinations[index];
     validateDestination(destination, loc);
@@ -507,14 +451,13 @@ export function installPlansTransaction(plans, visionQc, { sourceRoot = source }
 export async function main(argv = args) {
   const options = parse(argv);
   const component = await selectComponent(options);
-  const components = component === "all" ? ["imggen2", "mpw"] : [component];
-  const installImages = components.includes("imggen2");
-  const installPrompts = components.includes("mpw");
-  if (!installImages && options.target && !options.mpwTarget) throw new Error("MPW destination uses --mpw-target; --target selects an ImgGen2 directory.");
-  if (options.offline && installPrompts && !options.dryRun) throw new Error("MPW requires an online install; remove --offline or use --component imggen2. No components were installed.");
   process.env.HEITUZ_INSTALLER_IMPORT = "1";
   const helper = await import(pathToFileURL(path.join(source, "scripts", "imggen.mjs")).href);
   delete process.env.HEITUZ_INSTALLER_IMPORT;
+  if (component !== "imggen2" || options.mpwTarget) console.warn(helper.MPW_PLUGIN_NOTICE);
+  if (component === "mpw") return;
+  const components = ["imggen2"];
+  const installImages = true;
   const loc = helper.locations();
   const migratedLegacyPaths = migrateLegacyInstallPaths(loc.home, loc, { dryRun: options.dryRun, component });
   const plans = await resolveInstallPlans(options, loc.home);
@@ -538,16 +481,13 @@ export async function main(argv = args) {
     console.log(JSON.stringify({
       components,
       will_install_codex: installImages && !options.skipCodex && !helper.codexExists(loc.windows),
-      mpw_commands: installPrompts ? plans.map((plan) => mpwInstallArgs(plan, options)) : [],
       agent_targets: plans.map((plan) => plan.host).filter(Boolean),
       installs: plans.map((plan) => ({
         agent: plan.host,
         imggen2_target: plan.destination,
-        mpw_target: plan.mpwTarget,
         vision_qc: installImages ? { requested_mode: plan.visionQc.requested, mode: plan.visionQc.effective } : null,
       })),
       imggen2_target: primary.destination,
-      mpw_target: primary.mpwTarget,
       codex: helper.codexInstallCommand(loc.windows),
       platform: loc.windows ? "windows" : "posix",
       register,
@@ -569,7 +509,6 @@ export async function main(argv = args) {
         components,
         agent_host: plan.host,
         imggen2_target: plan.destination,
-        mpw_target: plan.mpwTarget,
         vision_qc: installImages ? { requested_mode: plan.visionQc.requested, mode: plan.visionQc.effective } : null,
       })),
     }, { windows: loc.windows });
@@ -580,18 +519,6 @@ export async function main(argv = args) {
     const codexPlan = helper.codexInstallCommand(loc.windows);
     run(codexPlan.command, codexPlan.args, { dryRun: false, label: "official Codex CLI install" });
   }
-  if (installPrompts) {
-    const bunCommand = helper.ensureBun(loc.windows);
-    for (const plan of plans) {
-      const invocation = helper.packageInvocation(loc.windows, mpwInstallArgs(plan, options), bunCommand);
-      run(invocation.command, invocation.args, { dryRun: false, label: `MPW install${plan.host ? ` (${plan.host})` : ""}` });
-      const manifest = JSON.parse(fs.readFileSync(path.join(plan.mpwTarget, "package.json"), "utf8"));
-      if (manifest.name !== "heituzmpw" || !fs.existsSync(path.join(plan.mpwTarget, "SKILL.md"))) throw new Error("MPW installer did not materialize the expected skill.");
-      console.log(`Installed MPW${plan.host ? ` (${plan.host})` : ""} to ${plan.mpwTarget}`);
-    }
-  }
-  if (!installImages) return;
-
   if (!register) {
     for (const plan of plans) console.log(`Installed ImgGen2${plan.host ? ` (${plan.host})` : ""} to ${plan.destination}`);
     console.log("Global launcher and manifest were not registered (offline/test install); rerun with --register to make the first target active.");
@@ -605,16 +532,13 @@ export async function main(argv = args) {
     components,
     agent_host: primary.host,
     imggen2_target: primary.destination,
-    mpw_target: primary.mpwTarget,
     imggen2_repo: "github:HeiTuz/ImgGen2",
-    mpw_repo: "github:HeiTuz/MPW",
     vision_qc_requested: primary.visionQc.requested,
     vision_qc_mode: primary.visionQc.effective,
     vision_qc_config: visionQcConfigs[0],
     installations: plans.map((plan, index) => ({
       agent_host: plan.host,
       imggen2_target: plan.destination,
-      mpw_target: plan.mpwTarget,
       components,
       vision_qc_config: visionQcConfigs[index],
       vision_qc_requested: plan.visionQc.requested,

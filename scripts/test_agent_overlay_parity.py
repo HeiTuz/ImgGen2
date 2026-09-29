@@ -109,8 +109,8 @@ class AgentOverlayParityTest(unittest.TestCase):
             with self.subTest(host=host):
                 self.assertNotEqual((ROOT / "agents" / host / "SKILL.md").read_text(encoding="utf-8"), self.canonical)
 
-    def test_hermes_uses_only_the_canonical_entrypoint(self) -> None:
-        self.assertEqual(sorted(path.name for path in (ROOT / "agents" / "hermes").iterdir()), ["README.md"])
+    def test_only_supported_host_overlays_ship(self) -> None:
+        self.assertEqual(sorted(path.name for path in (ROOT / "agents").iterdir() if path.is_dir()), sorted(HOSTS))
 
 
 if __name__ == "__main__":

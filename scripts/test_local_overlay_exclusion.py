@@ -59,7 +59,7 @@ class LocalOverlayExclusionTests(unittest.TestCase):
 
             destination = temporary_root / "installed"
             installed = subprocess.run(
-                [node, "scripts/install.mjs", "--offline", "--agent", "hermes", "--target", str(destination)],
+                [node, "scripts/install.mjs", "--offline", "--agent", "codex", "--target", str(destination)],
                 cwd=source,
                 check=False,
                 capture_output=True,
@@ -79,7 +79,7 @@ class LocalOverlayExclusionTests(unittest.TestCase):
                 self.skipTest(f"symlinks are required to verify local overlay safety: {error}")
 
             refreshed = subprocess.run(
-                [node, "scripts/install.mjs", "--offline", "--agent", "hermes", "--target", str(destination), "--force"],
+                [node, "scripts/install.mjs", "--offline", "--agent", "codex", "--target", str(destination), "--force"],
                 cwd=source,
                 check=False,
                 capture_output=True,

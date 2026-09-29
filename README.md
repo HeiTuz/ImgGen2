@@ -12,47 +12,30 @@
 
 ImgGen2는 Codex 구독 경로로 이미지를 만들고, 레퍼런스가 필요한 작업은 원본과 비교하며, 실패한 컷만 다시 만드는 에이전트 스킬입니다. **정확한 수량, 이어서 작업하기, 실제 파일 확인**까지 한 흐름으로 다룹니다.
 
-MPW는 프롬프트를 만드는 별도 스킬입니다. 통합 설치기에서 **ImgGen2만, MPW만, 둘 다** 선택할 수 있습니다.
+MPW는 프롬프트를 만드는 별도 플러그인 `mpw@heituz`입니다. 2.0.0부터 ImgGen2 설치기는 ImgGen2만 설치합니다. MPW는 [HeiTuz 마켓플레이스](https://github.com/HeiTuz/heituz-plugins)에서 설치하세요.
 
 ## 설치
 
-### 명령은 하나. 필요한 도구만 선택하세요.
+### 명령은 하나
 
 ```sh
 bunx --package github:HeiTuz/ImgGen2 imggen-imggen2
 ```
 
-일반 터미널에서 실행하면 설치할 구성요소와 에이전트 호스트를 선택합니다.
-
-```text
-Install what?
-  1  ImgGen2   이미지 생성 · 편집 · 배치 제작
-  2  MPW       프롬프트 작성 · 변주 · 핸드오프
-  3  Both      같은 호스트에 두 스킬 설치
-```
-
-| 선택 | 설치되는 것 | 이런 경우에 |
-| --- | --- | --- |
-| **ImgGen2** | 이미지 스킬, QC 설정, `imggen` 도우미. Codex CLI가 없으면 설치 | 바로 이미지를 만들고 싶을 때 |
-| **MPW** | 프롬프트 스킬만. ImgGen2·Codex CLI·QC 설정은 설치하지 않음 | 프롬프트를 작성하거나 다듬을 때 |
-| **Both** | 두 스킬을 선택한 호스트에 설치 | 아이디어 변주부터 이미지 제작까지 이어갈 때 |
+일반 터미널에서 실행하면 설치할 에이전트 호스트(Codex 또는 Claude Code)를 고릅니다. 이미지 스킬, QC 설정, `imggen` 도우미를 설치하고, Codex CLI가 없으면 함께 설치합니다.
 
 > Node.js **18 이상**과 Git이 필요합니다. 이미지 제작에는 Python과 로그인된 공식 Codex CLI가 필요하며, CI는 Python 3.12에서 검증합니다. 스킬 설치만으로 이미지 생성이 시작되거나 계정에 로그인되지는 않습니다.
 
-### 선택을 명령에 담기
+프롬프트 작성까지 함께 쓰려면 MPW 플러그인을 추가합니다.
 
 ```sh
-# ImgGen2만
-bunx --package github:HeiTuz/ImgGen2 imggen-imggen2 -- --component imggen2
-
-# MPW만
-bunx --package github:HeiTuz/ImgGen2 imggen-imggen2 -- --component mpw
-
-# 둘 다
-bunx --package github:HeiTuz/ImgGen2 imggen-imggen2 -- --component all
+# Codex
+codex plugin marketplace add HeiTuz/heituz-plugins && codex plugin add mpw@heituz
+# Claude Code
+claude plugin marketplace add HeiTuz/heituz-plugins && claude plugin install mpw@heituz
 ```
 
-Bun이 없는 새 환경에서는 아래 명령이 [공식 설치기](https://bun.com/docs/installation)로 최신 안정판을 설치하고 곧바로 ImgGen2를 설치합니다. 이미 Bun이 있으면 그대로 사용합니다. `imggen update`와 통합 설치기의 MPW 단계도 Bun이 없으면 공식 설치기를 자동 실행합니다.
+Bun이 없는 새 환경에서는 아래 명령이 [공식 설치기](https://bun.com/docs/installation)로 최신 안정판을 설치하고 곧바로 ImgGen2를 설치합니다. 이미 Bun이 있으면 그대로 사용합니다. `imggen update`도 Bun이 없으면 공식 설치기를 자동 실행합니다.
 
 ```sh
 bun_cmd="$(command -v bun || true)"; if [ -z "$bun_cmd" ]; then curl -fsSL https://bun.com/install | bash; bun_cmd="${BUN_INSTALL:-$HOME/.bun}/bin/bun"; fi; "$bun_cmd" x --package github:HeiTuz/ImgGen2 imggen-imggen2
@@ -64,40 +47,29 @@ Windows PowerShell:
 $bun = (Get-Command bun -ErrorAction SilentlyContinue).Source; if (!$bun) { irm https://bun.com/install.ps1 | iex; $root = if ($env:BUN_INSTALL) { $env:BUN_INSTALL } else { "$HOME\.bun" }; $bun = Join-Path $root 'bin\bun.exe' }; & $bun x --package github:HeiTuz/ImgGen2 imggen-imggen2
 ```
 
-**CI·비대화형 실행과 `--dry-run`은 질문하지 않습니다.** 선택을 생략하면 ImgGen2만 설치합니다. 자동화에서는 `--component`와 `--agent`를 함께 지정하세요. 이미 설치된 스킬을 교체할 때만 `--force`를 붙입니다.
+**CI·비대화형 실행과 `--dry-run`은 질문하지 않습니다.** 자동화에서는 `--agent`를 지정하세요. 이미 설치된 스킬을 교체할 때만 `--force`를 붙입니다.
 
 <details>
-<summary><strong>호스트 선택 · 직접 경로 · 독립 MPW 설치</strong></summary>
+<summary><strong>호스트 선택 · 직접 경로</strong></summary>
 
 ```sh
-# Codex에 두 스킬 설치
-bunx --package github:HeiTuz/ImgGen2 imggen-imggen2 -- --component all --agent codex
-
-# Claude Code에 MPW만 설치
-bunx --package github:HeiTuz/ImgGen2 imggen-imggen2 -- --component mpw --agent claude
+# Codex에 설치
+bunx --package github:HeiTuz/ImgGen2 imggen-imggen2 -- --agent codex
 
 # 파일을 쓰기 전에 계획 확인
-bunx --package github:HeiTuz/ImgGen2 imggen-imggen2 -- --component all --agent codex --dry-run
+bunx --package github:HeiTuz/ImgGen2 imggen-imggen2 -- --agent codex --dry-run
 ```
 
-| `--agent` | ImgGen2 경로 | MPW 경로 |
-| --- | --- | --- |
-| `codex` | `~/.codex/skills/ImgGen2` | `~/.codex/skills/MPW` |
-| `claude` | `~/.claude/skills/ImgGen2` | `~/.claude/skills/MPW` |
-| `hermes` | `~/.hermes/skills/ImgGen2` | `~/.hermes/skills/prompt-writing/MPW` |
+| `--agent` | ImgGen2 경로 |
+| --- | --- |
+| `codex` | `~/.codex/skills/ImgGen2` |
+| `claude` | `~/.claude/skills/ImgGen2` |
 
-`--agent all`은 감지한 호스트 전체를 뜻합니다. `--component all`은 두 스킬을 뜻합니다. 둘은 서로 다른 선택입니다. 비대화형 호스트 자동 감지는 `hermes > claude > codex` 순서이며, 감지 결과가 없으면 Hermes를 사용합니다.
+`--agent all`은 감지한 호스트 전체를 뜻합니다. 비대화형 호스트 자동 감지는 `claude > codex` 순서이며, 감지 결과가 없으면 Codex를 사용합니다. Hermes 대상은 2.0.0에서 제거됐습니다.
 
-직접 경로는 ImgGen2에 `--target`, MPW에 `--mpw-target`을 사용합니다. `--skip-codex`는 Codex CLI 설치를 생략합니다. 이전 `--skip-mpw`는 ImgGen2만 선택하는 호환 옵션입니다.
+직접 경로는 `--target`을 사용합니다. `--skip-codex`는 Codex CLI 설치를 생략합니다. 이전 옵션 `--component mpw|all`과 `--mpw-target`은 MPW를 설치하지 않고 플러그인 설치 방법만 안내합니다. `--skip-mpw`는 호환용으로 남아 있습니다.
 
-MPW 자체 설치기를 바로 호출할 수도 있습니다. 이때 호스트 옵션 이름은 **`--target`**입니다.
-
-```sh
-bunx --package github:HeiTuz/MPW heituzmpw -- --target codex
-```
-
-MPW 자체 설치기의 자동 호스트 기본값은 Claude Code입니다. 두 스킬의 설치 위치를 맞추려면 호스트를 명시하거나 위 통합 설치기를 사용하세요.
-
+</details>
 </details>
 
 ## 무엇을 만들 수 있나요
@@ -188,44 +160,37 @@ python scripts/creative_batch.py --prompt "독립잡지풍 검은 고양이" --s
 ## 업데이트
 
 ```sh
-# 등록된 구성요소 갱신
+# 등록된 ImgGen2 갱신
 imggen update
 
-# 이번에는 한 스킬만 갱신
-imggen update --component imggen2
-imggen update --component mpw
-
-# 두 스킬 갱신 또는 실행 계획만 확인
-imggen update --component all
-imggen update --component all --dry-run
+# 실행 계획만 확인
+imggen update --dry-run
 ```
 
-`imggen update`는 Bun으로 두 공개 스킬을 갱신합니다. Bun이 없으면 공식 설치기를 통해 최신 안정판을 먼저 설치합니다.
+`imggen update`는 Bun으로 공개 ImgGen2를 갱신합니다. Bun이 없으면 공식 설치기를 통해 최신 안정판을 먼저 설치합니다. 1.x에서 MPW까지 등록했다면 첫 업데이트 때 설치 기록에서 MPW 항목을 지우고 플러그인 설치 방법을 안내합니다. MPW는 `codex plugin marketplace upgrade heituz` 또는 `claude plugin update mpw@heituz`로 갱신합니다.
 
-다시 등록하면 이번에 고른 호스트·구성요소가 `imggen`의 갱신 대상으로 저장됩니다. MPW만 설치하면 이 등록은 변경하지 않습니다.
+다시 등록하면 이번에 고른 호스트가 `imggen`의 갱신 대상으로 저장됩니다.
 
-새 설치는 선택한 구성요소를 기록합니다. 이전 버전의 기록에 선택 정보가 없으면 ImgGen2만 갱신합니다. `--codex`를 추가하면 공식 Codex CLI도 갱신합니다.
-
-**MPW만 설치한 환경에는 `imggen` 도우미가 없습니다.** 통합 명령을 `--component mpw --force`로 다시 실행하거나, MPW 자체 설치기에 `--force`를 붙여 갱신하세요.
+`--codex`를 추가하면 공식 Codex CLI도 갱신합니다. 1.x에서 Hermes에 등록한 설치는 갱신하지 않고 `--agent codex` 또는 `--agent claude`로 다시 설치하라고 안내합니다.
 
 <details>
 <summary><strong>설치 문제 해결 · 오프라인 · Windows</strong></summary>
 
-- `imggen status`로 실제 경로·버전·등록 상태를 확인합니다. 선택하지 않은 MPW가 없어도 ImgGen2 설치는 정상입니다.
+- `imggen status`로 실제 경로·버전·등록 상태를 확인합니다. MPW 플러그인 설치 여부는 ImgGen2 상태에 영향을 주지 않습니다.
 - 온라인 ImgGen2 설치는 필요하면 공식 Codex CLI와 Pillow 설치를 시도합니다. 로그인은 사용자의 Codex 환경에서 진행합니다.
-- `--offline`은 ImgGen2 파일 복사용입니다. MPW 또는 두 스킬을 선택한 실설치에는 사용할 수 없습니다. `--dry-run --component all`은 두 설치의 계획만 확인할 수 있습니다.
+- `--offline`은 네트워크 설치 없이 ImgGen2 파일만 복사합니다.
 - `--no-register`는 전역 도우미·설치 기록·셸 설정 등록을 생략합니다. 오프라인에서 등록까지 하려면 `--register`를 명시하세요.
 - GitHub 패키지 실행이 패키지 매니저 정책에 막히면 스킬 검색 경로 밖에 소스를 내려받아 설치기를 실행하세요.
 
 ```sh
 git clone https://github.com/HeiTuz/ImgGen2.git ./ImgGen2-source
-node ./ImgGen2-source/scripts/install.mjs --component imggen2 --agent codex
+node ./ImgGen2-source/scripts/install.mjs --agent codex
 ```
 
 Windows는 PowerShell·cmd·Git Bash에서 사용할 수 있습니다. 공백·한글·UNC 경로를 지원하며, 다른 OS의 `/Users/...` 경로를 Windows 경로로 추측하지 않습니다. 구형 launcher 복구는 다음 명령을 사용합니다.
 
 ```sh
-npx --yes --allow-git=all --package github:HeiTuz/ImgGen2 imggen-imggen2 -- --component imggen2 --agent hermes --force --register
+npx --yes --allow-git=all --package github:HeiTuz/ImgGen2 imggen-imggen2 -- --agent codex --force --register
 ```
 
 자세한 경로 규칙은 [실행 계약](references/execution-contract.md), 상품 공유폴더 사용법은 [폴더 배치 예제](examples/dint-shared-folder-apparel-batch.md)를 참고하세요.
@@ -240,8 +205,8 @@ npx --yes --allow-git=all --package github:HeiTuz/ImgGen2 imggen-imggen2 -- --co
 | [Astra 실행 설계](references/astra-orchestration.md) | 문서 분리, 상태 판단, 완료 증거 |
 | [배치 안정성·확장성](references/reliability-and-scaling.md) | 워커 제한, 공유 해시, 재개, 실패 처리 |
 | [명시적 Grok 경로](references/grok-oauth-explicit-routing.md) | Codex·Claude에서는 공식 Grok CLI, Hermes에서는 xAI OAuth 네이티브 도구 사용 |
-| [호스트 오버레이](agents/README.md) | Codex·Claude Code·Hermes 설치 표면 |
-| [MPW](https://github.com/HeiTuz/MPW) | 독립 프롬프트 작성 스킬 |
+| [호스트 오버레이](agents/README.md) | Codex·Claude Code 설치 표면 |
+| [MPW](https://github.com/HeiTuz/MPW) | 프롬프트 작성 플러그인 `mpw@heituz` ([설치](https://github.com/HeiTuz/heituz-plugins)) |
 
 기본 생성은 Codex 구독 경로입니다. Grok·Wan 등 다른 제공자는 명시적으로 요청하고 해당 환경이 준비된 경우에만 사용하며, 실패했다고 다른 제공자로 조용히 전환하지 않습니다.
 

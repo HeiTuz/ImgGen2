@@ -18,24 +18,25 @@ function fakeExists(homeDir, relativePaths) {
 }
 
 const home = path.join(os.tmpdir(), "agent-detection-home");
-assert.deepEqual(detectAgentHosts({ homeDir: home, existsSync: fakeExists(home, [".hermes"]) }), ["hermes"]);
+assert.deepEqual(detectAgentHosts({ homeDir: home, existsSync: fakeExists(home, [".hermes"]) }), []);
 assert.deepEqual(detectAgentHosts({ homeDir: home, existsSync: fakeExists(home, [".claude"]) }), ["claude"]);
 assert.deepEqual(detectAgentHosts({ homeDir: home, existsSync: fakeExists(home, [".codex", ".codex/skills"]) }), ["codex"]);
-assert.deepEqual(detectAgentHosts({ homeDir: home, existsSync: fakeExists(home, [".codex", ".claude", ".hermes"]) }), ["hermes", "claude", "codex"]);
+assert.deepEqual(detectAgentHosts({ homeDir: home, existsSync: fakeExists(home, [".codex", ".claude", ".hermes"]) }), ["claude", "codex"]);
 assert.deepEqual(detectAgentHosts({ homeDir: home, existsSync: () => false }), []);
 assert.deepEqual(detectAgentHosts({ homeDir: home, existsSync: () => false, cliSignals: { claude: true } }), ["claude"]);
 
 assert.deepEqual(deterministicAgentHosts("auto", ["codex", "claude"]), ["claude"]);
-assert.deepEqual(deterministicAgentHosts("auto", ["codex", "hermes"]), ["hermes"]);
-assert.deepEqual(deterministicAgentHosts("auto", []), ["hermes"]);
+assert.deepEqual(deterministicAgentHosts("auto", ["codex", "hermes"]), ["codex"]);
+assert.deepEqual(deterministicAgentHosts("auto", []), ["codex"]);
+assert.throws(() => deterministicAgentHosts("hermes", []), /Unsupported agent host/u);
 assert.deepEqual(deterministicAgentHosts("all", ["codex", "claude"]), ["claude", "codex"]);
-assert.deepEqual(parseInteractiveAgentHosts("hermes,codex", ["claude"]), ["hermes", "codex"]);
+assert.deepEqual(parseInteractiveAgentHosts("claude,codex", ["claude"]), ["claude", "codex"]);
+assert.throws(() => parseInteractiveAgentHosts("hermes", []), /Unsupported agent host/u);
 assert.equal(parse([]).agent, "auto");
 assert.equal(parse(["--", "--agent", "gpt"]).agent, "gpt");
 assert.deepEqual(hostInstallPlan(home, "claude"), {
   host: "claude",
   destination: path.resolve(home, ".claude", "skills", "ImgGen2"),
-  mpwTarget: path.resolve(home, ".claude", "skills", "MPW"),
 });
 const installer = fileURLToPath(new URL("./install.mjs", import.meta.url));
 const unsafeHome = fs.mkdtempSync(path.join(os.tmpdir(), "imggen-unsafe-target-"));
@@ -74,7 +75,7 @@ try {
   fs.mkdirSync(transactionalDestination, { recursive: true });
   fs.writeFileSync(path.join(transactionalDestination, "stale.txt"), "old\n");
   installPlansTransaction(
-    [{ destination: transactionalDestination, mpwTarget: path.join(temp, "mpw"), host: "codex" }],
+    [{ destination: transactionalDestination, host: "codex" }],
     { requested: "auto", effective: "auto" },
     { sourceRoot: fixture },
   );
@@ -89,7 +90,7 @@ try {
   fs.writeFileSync(path.join(preservedDestination, "marker.txt"), "preserved\n");
   assert.throws(
     () => installPlansTransaction(
-      [{ destination: preservedDestination, mpwTarget: path.join(temp, "mpw-failing"), host: "codex" }],
+      [{ destination: preservedDestination, host: "codex" }],
       { requested: "auto", effective: "auto" },
       { sourceRoot: failingSource },
     ),

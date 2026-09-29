@@ -1,10 +1,9 @@
 import path from "node:path";
 
-export const AGENT_HOST_PRIORITY = Object.freeze(["hermes", "claude", "codex"]);
+export const AGENT_HOST_PRIORITY = Object.freeze(["claude", "codex"]);
 
 const HOST_ALIASES = Object.freeze({ gpt: "codex" });
 const HOST_SIGNAL_DIRS = Object.freeze({
-  hermes: [".hermes", path.join(".hermes", "skills")],
   claude: [".claude", path.join(".claude", "skills")],
   codex: [".codex", path.join(".codex", "skills")],
 });
@@ -29,8 +28,8 @@ function orderedUniqueHosts(values) {
 export function deterministicAgentHosts(requested, detectedHosts) {
   const target = normalizeAgentHost(requested || "auto");
   const detected = orderedUniqueHosts(detectedHosts || []);
-  if (target === "all") return detected.length ? detected : ["hermes"];
-  if (target === "auto") return [detected[0] || "hermes"];
+  if (target === "all") return detected.length ? detected : ["codex"];
+  if (target === "auto") return [detected[0] || "codex"];
   if (!AGENT_HOST_PRIORITY.includes(target)) throw new Error(`Unsupported agent host: ${requested}`);
   return [target];
 }
@@ -49,5 +48,5 @@ export function parseInteractiveAgentHosts(answer, detectedHosts) {
 
 export function formatDetectedHosts(detectedHosts) {
   const detected = orderedUniqueHosts(detectedHosts || []);
-  return detected.length ? detected.join(", ") : "none (Hermes fallback)";
+  return detected.length ? detected.join(", ") : "none (Codex fallback)";
 }

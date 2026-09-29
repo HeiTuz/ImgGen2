@@ -16,7 +16,6 @@ installed payload = canonical allowlisted tree + agents/<host>/ overlay (same-na
 
 | folder | contents |
 |---|---|
-| `hermes/` | Thin note only. **The canonical root payload is the Hermes-native surface**, so no migration is needed. |
 | `claude/` | Claude Code entry surface (`SKILL.md`): description-match invocation, Bash/Read tool mapping, host-default Vision = Claude's native image understanding, explicit Grok route uses the official Grok CLI native image tools. |
 | `codex/` | GPT/Codex entry surface (`SKILL.md`): skills-directory discovery, shell tool mapping, host-default Vision = Codex native image input, explicit Grok route uses the official Grok CLI native image tools. |
 

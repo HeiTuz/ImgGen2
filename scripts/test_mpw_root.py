@@ -1,3 +1,4 @@
+import json
 import os
 from pathlib import Path
 import sys
@@ -54,16 +55,37 @@ class MpwRootTests(unittest.TestCase):
                 with self.assertRaisesRegex(RuntimeError, "not an existing MPW installation"):
                     mpw_root.resolve_mpw_root()
 
-    def test_standard_resolution_prefers_hermes_installation(self):
+    def test_standard_resolution_prefers_newest_codex_plugin_cache(self):
         with tempfile.TemporaryDirectory() as tmp:
             home = Path(tmp)
-            hermes = home / ".hermes" / "skills" / "prompt-writing" / "MPW"
-            claude = home / ".claude" / "skills" / "MPW"
-            for root in (hermes, claude):
-                root.mkdir(parents=True)
-                (root / "SKILL.md").write_text("---\nname: MPW\n---\n", encoding="utf-8")
+            base = home / ".codex" / "plugins" / "cache" / "heituz" / "mpw"
+            for version in ("2.9.0", "3.0.0", "3.0.0+codex.local-1"):
+                self.make_install_tree(base / version / "skills" / "mpw")
+            claude = self.make_claude_plugin(home, "3.1.0")
             with mock.patch.dict(os.environ, {"HOME": str(home), "USERPROFILE": str(home)}, clear=True):
-                self.assertEqual(mpw_root.resolve_mpw_root(), hermes)
+                self.assertEqual(mpw_root.resolve_mpw_root(), base / "3.0.0+codex.local-1" / "skills" / "mpw")
+            with mock.patch.dict(os.environ, {"HOME": str(home), "USERPROFILE": str(home), "CODEX_HOME": str(home / "other")}, clear=True):
+                self.assertEqual(mpw_root.resolve_mpw_root(), claude)
+
+    def test_legacy_skill_installs_are_not_resolved(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            home = Path(tmp)
+            for legacy in (home / ".hermes" / "skills" / "prompt-writing" / "MPW", home / ".claude" / "skills" / "MPW", home / ".codex" / "skills" / "MPW"):
+                self.make_install_tree(legacy)
+            with mock.patch.dict(os.environ, {"HOME": str(home), "USERPROFILE": str(home)}, clear=True):
+                self.assertIsNone(mpw_root.resolve_mpw_root())
+
+    def make_install_tree(self, root: Path) -> Path:
+        root.mkdir(parents=True)
+        (root / "SKILL.md").write_text("---\nname: mpw\n---\n", encoding="utf-8")
+        return root
+
+    def make_claude_plugin(self, home: Path, version: str) -> Path:
+        install = home / ".claude" / "plugins" / "cache" / "heituz" / "mpw" / version
+        skill = self.make_install_tree(install / "skills" / "mpw")
+        registry = home / ".claude" / "plugins" / "installed_plugins.json"
+        registry.write_text(json.dumps({"version": 2, "plugins": {"mpw@heituz": [{"scope": "user", "installPath": str(install), "version": version}]}}), encoding="utf-8")
+        return skill
 
     def test_empty_environment_and_home_returns_none(self):
         with tempfile.TemporaryDirectory() as tmp:
