@@ -171,6 +171,12 @@ imggen update --dry-run
 
 다시 등록하면 이번에 고른 호스트가 `imggen`의 갱신 대상으로 저장됩니다.
 
+`imggen update`는 내부적으로 `--no-register`로 실행되므로 전역 런처(`~/.config/imggen/imggen.mjs`)와 설치 기록(`installation.json`)은 갱신하지 않고, 설치 기록에 등록된 호스트마다 스킬 파일을 하나씩 교체합니다. 런처까지 새 버전으로 바꾸려면 `--register`를 붙여 설치기를 다시 실행하세요. 호스트를 여러 개 쓴다면 `--agent`(`claude`, `codex`, `all`)로 대상을 명시하세요.
+
+```sh
+bunx --package github:HeiTuz/ImgGen2 imggen-imggen2 -- --component imggen2 --force --register
+```
+
 `--codex`를 추가하면 공식 Codex CLI도 갱신합니다. 1.x에서 Hermes에 등록한 설치는 갱신하지 않고 `--agent codex` 또는 `--agent claude`로 다시 설치하라고 안내합니다.
 
 <details>
