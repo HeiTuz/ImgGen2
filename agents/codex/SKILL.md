@@ -1,13 +1,13 @@
 ---
 name: ImgGen2
 description: "Generate or edit image files; not for writing prompts alone. Use the Codex subscription route or an explicitly named provider for single images and exact-N batches. GPT/Codex host surface: the host and the generation transport coincide."
-version: 2.0.0
+version: 2.0.1
 author: HeiTuz
 license: MIT
 platforms: [linux, macos, windows]
 metadata:
   host_surface: codex
-  canonical_source: "HeiTuz/ImgGen2 SKILL.md v2.0.0"
+  canonical_source: "HeiTuz/ImgGen2 SKILL.md v2.0.1"
   tags: [image-generation, image-editing, chatgpt]
   category: creative
 ---

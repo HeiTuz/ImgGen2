@@ -53,6 +53,19 @@ class MPWContractMirrorTests(unittest.TestCase):
                     "and must be re-synced from MPW/contracts.",
                 )
 
+    def test_contracts_tree_matches_mpw_bytes(self):
+        # Same file set as MPW scripts/sync_contracts.py: every manifest entry plus manifest.json.
+        for relative in (*self.manifest_files, "manifest.json"):
+            with self.subTest(contract=relative):
+                authority = self.mpw_root / "contracts" / relative
+                mirror = SKILL_ROOT / "contracts" / relative
+                self.assertTrue(mirror.is_file(), f"contracts/{relative} is missing from this repo")
+                self.assertEqual(
+                    sha256_file(mirror),
+                    sha256_file(authority),
+                    f"contracts/{relative} differs from MPW authority {authority}; re-sync from MPW/contracts.",
+                )
+
 
 if __name__ == "__main__":
     unittest.main()
