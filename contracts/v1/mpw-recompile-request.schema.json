@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://schemas.gajae.local/prompt-contracts/mpw-recompile-request/v1",
+  "$id": "https://raw.githubusercontent.com/HeiTuz/MPW/main/contracts/v1/mpw-recompile-request.schema.json",
   "title": "MPW recompile request v1",
   "type": "object",
   "additionalProperties": false,
@@ -20,7 +20,7 @@
     "retry_generation": {"type": "integer", "minimum": 1},
     "failed_axes": {"type": "array", "items": {"type": "string", "enum": ["goal_fit", "text_accuracy", "material_realism", "layout"]}},
     "failed_promo_checks": {"type": "array", "items": {"type": "string", "enum": ["physical_type_subject_interaction", "generic_card_regression", "printed_meta_ui_not_literal", "color_lock_2_to_3", "finishing_devices_1_to_3", "korean_glyph_mask_safety"]}},
-    "reason_codes": {"type": "array", "minItems": 1, "items": {"type": "string"}},
+    "reason_codes": {"type": "array", "minItems": 1, "items": {"type": "string", "enum": ["qc_axis:goal_fit", "qc_axis:text_accuracy", "qc_axis:material_realism", "qc_axis:layout", "promo_check:physical_type_subject_interaction", "promo_check:generic_card_regression", "promo_check:printed_meta_ui_not_literal", "promo_check:color_lock_2_to_3", "promo_check:finishing_devices_1_to_3", "promo_check:korean_glyph_mask_safety"]}},
     "requested_delta_codes": {"type": "array", "minItems": 1, "items": {"type": "string", "enum": ["clarify_goal_fit", "resolve_text_from_source", "clarify_material_realism", "clarify_layout", "resolve_promo_physical_type_subject_interaction", "resolve_promo_generic_card_regression", "resolve_promo_printed_meta_ui_not_literal", "resolve_promo_color_lock_2_to_3", "resolve_promo_finishing_devices_1_to_3", "resolve_promo_korean_glyph_mask_safety"]}}
   },
   "$defs": {

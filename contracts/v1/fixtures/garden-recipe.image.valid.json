@@ -75,7 +75,10 @@
       "term": "quiet editorial",
       "effect": "keeps the frame restrained and magazine-like",
       "scene_fit": "single-subject portrait",
-      "en": ["quiet editorial", "restrained magazine portrait"]
+      "en": ["quiet editorial", "restrained magazine portrait"],
+      "origin": "evidence",
+      "status": "explicit",
+      "source_ref": ["obs_camera_01", "obs_light_01"]
     }
   ],
   "locks": {

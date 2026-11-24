@@ -4,7 +4,7 @@
   "bundle_id": "pb_editorial_20260711",
   "source_recipe": {
     "recipe_id": "gr_editorial_20260711",
-    "recipe_hash": "sha256:6e3deb25fa97604112f04243114dc661f36974acb70cfe135ccad64dff4d4a58"
+    "recipe_hash": "sha256:51bc1c4ee5929b69f74c4d18e2d85323cc5b21e8b6f563fae98425b7a9dfd433"
   },
   "handoff": {
     "protocol": "generation-handoff/v1",

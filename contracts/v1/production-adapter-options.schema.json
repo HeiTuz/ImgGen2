@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://schemas.gajae.local/prompt-contracts/production-adapter-options/v1",
+  "$id": "https://raw.githubusercontent.com/HeiTuz/MPW/main/contracts/v1/production-adapter-options.schema.json",
   "title": "Production adapter options v1",
   "type": "object",
   "additionalProperties": false,

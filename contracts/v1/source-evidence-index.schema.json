@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://schemas.gajae.local/prompt-contracts/source-evidence-index/v1",
+  "$id": "https://raw.githubusercontent.com/HeiTuz/MPW/main/contracts/v1/source-evidence-index.schema.json",
   "title": "Source evidence index v1",
   "type": "object",
   "additionalProperties": false,

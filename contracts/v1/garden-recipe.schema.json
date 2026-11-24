@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://schemas.gajae.local/prompt-contracts/garden-recipe/v1",
+  "$id": "https://raw.githubusercontent.com/HeiTuz/MPW/main/contracts/v1/garden-recipe.schema.json",
   "title": "GardenRecipe v1",
   "type": "object",
   "additionalProperties": false,
@@ -186,6 +186,19 @@
           "type": "array",
           "minItems": 1,
           "items": {"type": "string", "minLength": 1, "maxLength": 200}
+        },
+        "origin": {
+          "type": "string",
+          "enum": ["user", "surface", "evidence", "default", "derived"]
+        },
+        "status": {
+          "type": "string",
+          "enum": ["explicit", "derived", "assumed"]
+        },
+        "source_ref": {
+          "type": "array",
+          "minItems": 1,
+          "items": {"type": "string", "pattern": "^obs_[A-Za-z0-9_-]{4,128}$"}
         }
       }
     },
