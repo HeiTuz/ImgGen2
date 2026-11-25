@@ -1,6 +1,6 @@
 {
   "name": "heituz-skill",
-  "version": "2.0.1",
+  "version": "3.0.0",
   "private": false,
   "description": "Provenance-safe ChatGPT subscription image production skill.",
   "license": "MIT",

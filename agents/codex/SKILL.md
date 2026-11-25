@@ -1,13 +1,13 @@
 ---
 name: HeiTuz
 description: "Generate or edit image files; not for writing prompts alone. Use the Codex subscription route or an explicitly named provider for single images and exact-N batches. GPT/Codex host surface: the host and the generation transport coincide."
-version: 2.0.1
+version: 3.0.0
 author: HeiTuz
 license: MIT
 platforms: [linux, macos, windows]
 metadata:
   host_surface: codex
-  canonical_source: "HeiTuz/heituz-skill SKILL.md v2.0.1"
+  canonical_source: "HeiTuz/heituz-skill SKILL.md v3.0.0"
   tags: [image-generation, image-editing, chatgpt]
   category: creative
 ---
