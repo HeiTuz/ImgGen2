@@ -29,7 +29,7 @@ for (const [command, prefix] of candidates) {
 }
 assert.ok(python, "Python 3 was not found on PATH");
 
-const temp = fs.mkdtempSync(path.join(os.tmpdir(), "imggenimggen2-packaged-helper-"));
+const temp = fs.mkdtempSync(path.join(os.tmpdir(), "heituz-skill-packaged-helper-"));
 try {
   const dryRunReport = JSON.parse(run(process.execPath, [npmCli, "pack", "--dry-run", "--json"]));
   // npm <= 11 reports an array of packages; npm 12 keys the report by package name.
@@ -50,7 +50,7 @@ try {
   fs.mkdirSync(consumer);
   run(process.execPath, [npmCli, "install", "--ignore-scripts", "--no-audit", "--no-fund", path.join(packDestination, tarballs[0])], consumer);
 
-  const installed = path.join(consumer, "node_modules", "imggen-imggen2-skill");
+  const installed = path.join(consumer, "node_modules", "heituz-skill");
   const [command, prefix] = python;
   run(command, [...prefix, path.join(installed, "scripts", "folder_batch_prepare.py"), "--help"], consumer);
   const source = path.join(temp, "source");

@@ -1,6 +1,6 @@
 # agents/ — per-host distribution overlays
 
-This folder holds the **per-host install overlays** for ImgGen2. The repository root (SKILL.md + references/ + scripts/ + contracts/ + examples/) is the single canonical source; each host folder carries only the minimal migrated entry/instruction surface for that host — never a full repository fork.
+This folder holds the **per-host install overlays** for HeiTuz. The repository root (SKILL.md + references/ + scripts/ + contracts/ + examples/) is the single canonical source; each host folder carries only the minimal migrated entry/instruction surface for that host — never a full repository fork.
 
 ## Install model
 
@@ -27,7 +27,7 @@ A survey of five comparable public multi-agent skill/installer repositories (oh-
 
 Installed trees are generated artifacts. Edit the canonical source, synchronize host overlays, run `npm test`, regenerate the intended installations, and verify their payloads. Leave the required handoff and state whether changes are uncommitted. Local installation verification can complete without a public release.
 
-Version bumps, pushes, and release publication need separate authorization under the root AGENTS.md. An upstream `imggen update` can replace unpublished local changes; preserve the canonical diff and handoff. When a release is authorized, verify the published version, installer, CI, and advertised live route before claiming release completion.
+Version bumps, pushes, and release publication need separate authorization under the root AGENTS.md. An upstream `heituz-skill update` can replace unpublished local changes; preserve the canonical diff and handoff. When a release is authorized, verify the published version, installer, CI, and advertised live route before claiming release completion.
 
 ## Sync rule (drift prevention)
 

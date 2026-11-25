@@ -50,7 +50,7 @@ def compile_manifest(
     compiler = root / "scripts" / "compile_image_variations.py"
     output.parent.mkdir(parents=True, exist_ok=True)
     request = {"concept": prompt, "style": style, "output_prefix": output_prefix, "locks": {}}
-    with tempfile.TemporaryDirectory(prefix=".imggen-compile-", dir=output.parent) as tmp:
+    with tempfile.TemporaryDirectory(prefix=".heituz-skill-compile-", dir=output.parent) as tmp:
         request_path = Path(tmp) / "request.json"
         compiled_path = Path(tmp) / "compiled.jsonl"
         request_path.write_text(json.dumps(request, ensure_ascii=False, sort_keys=True), encoding="utf-8")
@@ -79,7 +79,7 @@ def compile_single_prompt(prompt: str, *, mode: MpwMode = "auto", mpw_root: Path
         if mode == "required":
             raise MpwPromptError("--mpw required but MPW variation compiler was not found.")
         return prompt, False
-    with tempfile.TemporaryDirectory(prefix="imggen-mpw-single-") as tmp:
+    with tempfile.TemporaryDirectory(prefix="heituz-skill-mpw-single-") as tmp:
         manifest = Path(tmp) / "single.jsonl"
         compile_manifest(prompt, "", 1, manifest, mpw_root=root, output_prefix="images")
         try:

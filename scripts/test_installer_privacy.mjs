@@ -7,7 +7,7 @@ import { fileURLToPath } from "node:url";
 import { spawnSync } from "node:child_process";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-const temp = fs.mkdtempSync(path.join(os.tmpdir(), "imggenimggen2-install-"));
+const temp = fs.mkdtempSync(path.join(os.tmpdir(), "heituz-skill-install-"));
 
 function run(command, args) {
   const result = spawnSync(command, args, { cwd: root, encoding: "utf8" });

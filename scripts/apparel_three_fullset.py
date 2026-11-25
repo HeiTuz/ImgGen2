@@ -308,7 +308,7 @@ def prepare_folder(contract_path: Path, run_root: Path) -> dict[str, Any]:
             "shared_contract_path": str(package_path),
             "shared_contract_sha256": shared_sha,
             "source_contract_sha256": sha256_file(contract_path),
-            "execution_surface": "standard ImgGen2 generation backend",
+            "execution_surface": "standard HeiTuz generation backend",
             "forbid": ["overwrite", "cross_attempt_recovery", "generated_result_chaining", "silent_provider_fallback"],
         }
         spec_path = folder_root / f"{spec['task_id']}.json"
@@ -376,7 +376,7 @@ def inspect_candidate_task(spec_path: Path) -> dict[str, Any]:
     return {
         "task_id": spec["task_id"],
         "candidate_set": attempt,
-        "execution_surface": "standard ImgGen2 generation backend",
+        "execution_surface": "standard HeiTuz generation backend",
         "shared_contract_sha256": spec["shared_contract_sha256"],
         "source_count": len(source_paths),
         "source_inventory": [source["name"] for source in shared["sources"]],

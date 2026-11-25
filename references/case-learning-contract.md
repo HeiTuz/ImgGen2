@@ -1,6 +1,6 @@
 # Case Learning and Branching Contract
 
-Use this contract whenever Boss supplies a production example, correction, failed result, successful result, visual reference, or new operating rule for ImgGen2.
+Use this contract whenever Boss supplies a production example, correction, failed result, successful result, visual reference, or new operating rule for HeiTuz.
 
 ## 1. Classify before changing
 

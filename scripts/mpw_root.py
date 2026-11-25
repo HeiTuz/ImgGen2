@@ -1,4 +1,4 @@
-"""Resolve the local MPW installation used by ImgGen2 and cross-skill tests.
+"""Resolve the local MPW installation used by HeiTuz and cross-skill tests.
 
 MPW ships as the plugin ``mpw@heituz`` (https://github.com/HeiTuz/heituz-plugins).
 ``MPW_ROOT`` takes precedence when it is present in the environment and

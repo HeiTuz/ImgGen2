@@ -1,4 +1,4 @@
-"""Fail-closed path classification for cross-platform ImgGen2 inputs."""
+"""Fail-closed path classification for cross-platform HeiTuz inputs."""
 from __future__ import annotations
 
 import os

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""ImgGen2-owned Wan transport that leaves Hermes-native image_gen routing untouched."""
+"""HeiTuz-owned Wan transport that leaves Hermes-native image_gen routing untouched."""
 from __future__ import annotations
 
 import argparse
@@ -18,7 +18,7 @@ from codex_subscription_transport import copy_png_exclusive, TransportError as C
 
 HERMES_HOME = Path(os.environ.get("HERMES_HOME", "~/.hermes")).expanduser().resolve()
 PLUGIN_PATH = HERMES_HOME / "plugins" / "alibaba-token-plan-media" / "__init__.py"
-DEFAULT_RUN_ROOT = HERMES_HOME / "artifacts" / "imggen2"
+DEFAULT_RUN_ROOT = HERMES_HOME / "artifacts" / "heituz"
 
 
 class TransportError(RuntimeError):

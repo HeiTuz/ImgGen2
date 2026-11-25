@@ -25,7 +25,7 @@ def run_preset(*, slug: str, prompt: str, style: str, count: int, argv: Sequence
             args.extend((option, value))
     scripts = Path(__file__).resolve().parent.parent / "scripts"
     sys.path.insert(0, str(scripts))
-    spec = importlib.util.spec_from_file_location("imggen_creative_batch_example", scripts / "creative_batch.py")
+    spec = importlib.util.spec_from_file_location("heituz_skill_creative_batch_example", scripts / "creative_batch.py")
     if spec is None or spec.loader is None:
         raise RuntimeError("Cannot load the packaged creative batch runner.")
     module = importlib.util.module_from_spec(spec)

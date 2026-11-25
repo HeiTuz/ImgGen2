@@ -33,10 +33,10 @@ jobs:
         if: runner.os == 'Linux'
         run: |
           archive="$(npm pack --silent)"
-          npx_target="$(mktemp -d)/npx/ImgGen2"
-          bunx_target="$(mktemp -d)/bunx/ImgGen2"
+          npx_target="$(mktemp -d)/npx/HeiTuz"
+          bunx_target="$(mktemp -d)/bunx/HeiTuz"
           npx --yes "./$archive" -- --offline --no-register --target "$npx_target"
-          bunx --package "$PWD/$archive" imggen-imggen2 -- --offline --no-register --target "$bunx_target"
+          bunx --package "$PWD/$archive" heituz-skill -- --offline --no-register --target "$bunx_target"
           test -f "$npx_target/SKILL.md"
           test -f "$npx_target/contracts/v1/image-production-handoff.schema.json"
           test -f "$bunx_target/SKILL.md"
@@ -46,6 +46,6 @@ jobs:
         shell: pwsh
         run: |
           $archive = npm pack --silent
-          $target = Join-Path $env:RUNNER_TEMP "packed ImgGen2 한글"
+          $target = Join-Path $env:RUNNER_TEMP "packed HeiTuz 한글"
           npx --yes "./$archive" -- --offline --no-register --target "$target"
           if (-not (Test-Path (Join-Path $target "SKILL.md"))) { throw "SKILL.md missing" }

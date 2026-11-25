@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Reusable MPW -> ImgGen2 bulk ideation runner with clean final-only output."""
+"""Reusable MPW -> HeiTuz bulk ideation runner with clean final-only output."""
 from __future__ import annotations
 
 import argparse
@@ -24,7 +24,7 @@ class CreativeBatchError(RuntimeError):
 def _workspace_for(output_root: Path, prompt: str, style: str, count: int, seed: int | None) -> Path:
     identity = json.dumps({"prompt": prompt, "style": style, "count": count, "seed": seed}, ensure_ascii=False, sort_keys=True)
     suffix = hashlib.sha256(identity.encode("utf-8")).hexdigest()[:12]
-    return output_root.parent / f".{output_root.name}.imggen-work-{suffix}"
+    return output_root.parent / f".{output_root.name}.heituz-skill-work-{suffix}"
 
 
 def _owned_pngs(manifest: Path, root: Path) -> list[Path]:
@@ -97,7 +97,7 @@ def run_creative_batch(
         # its exact compiled manifest, but give planning an isolated workspace.
         retained = workspace.exists()
         try:
-            with tempfile.TemporaryDirectory(prefix="imggen-plan-") as tmp:
+            with tempfile.TemporaryDirectory(prefix="heituz-skill-plan-") as tmp:
                 plan_root = Path(tmp)
                 plan_manifest = plan_root / "variations.jsonl"
                 existing_manifest = workspace / "variations.jsonl"

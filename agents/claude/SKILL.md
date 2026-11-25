@@ -1,5 +1,5 @@
 ---
-name: ImgGen2
+name: HeiTuz
 description: "Generate or edit image files; not for writing prompts alone. Use the Codex subscription route or an explicitly named provider for single images and exact-N batches. Claude Code host surface."
 version: 2.0.1
 author: HeiTuz
@@ -7,14 +7,14 @@ license: MIT
 platforms: [linux, macos, windows]
 metadata:
   host_surface: claude
-  canonical_source: "HeiTuz/ImgGen2 SKILL.md v2.0.1"
+  canonical_source: "HeiTuz/heituz-skill SKILL.md v2.0.1"
   tags: [image-generation, image-editing, chatgpt]
   category: creative
 ---
 
-# ImgGen2 (Claude Code surface)
+# HeiTuz (Claude Code surface)
 
-> **Host integration — Claude Code.** This file is the entry surface for Claude Code installs (`~/.claude/skills/ImgGen2`). The rules below are identical to the canonical SKILL.md; only the host-integration surface (frontmatter, invocation notes, tool naming) is migrated.
+> **Host integration — Claude Code.** This file is the entry surface for Claude Code installs (`~/.claude/skills/HeiTuz`). The rules below are identical to the canonical SKILL.md; only the host-integration surface (frontmatter, invocation notes, tool naming) is migrated.
 > - **Invocation**: Claude Code loads this skill by frontmatter `description` match. `scripts/*.py` commands run through the Bash tool.
 > - **Vision QC tool**: the "host's default Vision tool" on this host is Claude's native image understanding — read the artifact with the Read tool and apply the QC rubric linked from the execution reference. No separate reviewer model is pinned.
 > - **Grok route**: explicit Grok requests use `scripts/grok_cli_transport.py` with the official Grok CLI native `image_gen` / `image_edit` tools. Require an existing working CLI login. Read the routing contract; never substitute another provider or extract credentials.

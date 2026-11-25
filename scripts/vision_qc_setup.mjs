@@ -25,7 +25,7 @@ if (status) {
 
 console.log(`Vision-QC setup
 
-ImgGen2 uses the host's default Vision model in auto mode.
+HeiTuz uses the host's default Vision model in auto mode.
 
 Hermes configuration:
   auxiliary.vision.provider: auto

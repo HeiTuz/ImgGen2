@@ -21,7 +21,7 @@ const status = spawnSync(process.execPath, [script, "--status"], { cwd: root, en
 assert.equal(status.status, 0, status.stderr || status.stdout);
 assert.deepEqual(JSON.parse(status.stdout), { vision_qc: "auto", reviewer: "host-default-vision" });
 
-const temporary = fs.mkdtempSync(path.join(os.tmpdir(), "imggen-qc-status-"));
+const temporary = fs.mkdtempSync(path.join(os.tmpdir(), "heituz-skill-qc-status-"));
 try {
   const config = path.join(temporary, "vision-qc.json");
   fs.writeFileSync(config, JSON.stringify({ version: 2, qc_mode: "off" }));

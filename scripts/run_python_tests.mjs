@@ -15,7 +15,7 @@ for (const [command, prefix] of candidates) {
 }
 
 if (selected === null) {
-  console.error("ImgGen2 tests: Python 3 was not found on PATH.");
+  console.error("HeiTuz tests: Python 3 was not found on PATH.");
   process.exitCode = 1;
 } else {
   const [command, prefix] = selected;
@@ -27,7 +27,7 @@ if (selected === null) {
     const result = spawnSync(command, [...prefix, ...commandArgs], { stdio: "inherit" });
     if (result.error || result.status !== 0) {
       console.error(
-        `ImgGen2 tests: ${command} ${[...prefix, ...commandArgs].join(" ")} failed` +
+        `HeiTuz tests: ${command} ${[...prefix, ...commandArgs].join(" ")} failed` +
         (result.error ? `: ${result.error.message}` : ` (exit ${result.status})`),
       );
       process.exitCode = result.status || 1;

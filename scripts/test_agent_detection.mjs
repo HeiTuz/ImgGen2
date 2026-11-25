@@ -36,10 +36,10 @@ assert.equal(parse([]).agent, "auto");
 assert.equal(parse(["--", "--agent", "gpt"]).agent, "gpt");
 assert.deepEqual(hostInstallPlan(home, "claude"), {
   host: "claude",
-  destination: path.resolve(home, ".claude", "skills", "ImgGen2"),
+  destination: path.resolve(home, ".claude", "skills", "HeiTuz"),
 });
 const installer = fileURLToPath(new URL("./install.mjs", import.meta.url));
-const unsafeHome = fs.mkdtempSync(path.join(os.tmpdir(), "imggen-unsafe-target-"));
+const unsafeHome = fs.mkdtempSync(path.join(os.tmpdir(), "heituz-skill-unsafe-target-"));
 try {
   const unsafe = spawnSync(process.execPath, [installer, "--target", unsafeHome, "--offline", "--force"], {
     encoding: "utf8",
@@ -57,7 +57,7 @@ try {
   fs.rmSync(unsafeHome, { recursive: true, force: true });
 }
 
-const temp = fs.mkdtempSync(path.join(os.tmpdir(), "imggen-overlay-test-"));
+const temp = fs.mkdtempSync(path.join(os.tmpdir(), "heituz-skill-overlay-test-"));
 try {
   const fixture = path.join(temp, "source");
   const destination = path.join(temp, "installed");
@@ -97,7 +97,7 @@ try {
     /missing the codex agent overlay/u,
   );
   assert.equal(fs.readFileSync(path.join(preservedDestination, "marker.txt"), "utf8"), "preserved\n");
-  assert.equal(fs.readdirSync(temp).some((entry) => entry.startsWith(".imggenimggen2-stage-")), false);
+  assert.equal(fs.readdirSync(temp).some((entry) => entry.startsWith(".heituz-skill-stage-")), false);
 } finally {
   fs.rmSync(temp, { recursive: true, force: true });
 }

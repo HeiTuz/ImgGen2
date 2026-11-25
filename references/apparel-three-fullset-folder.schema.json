@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "urn:imggen2:apparel-dynamic-fullset-folder.schema.json",
-  "title": "ImgGen2 apparel dynamic full-set folder contract",
+  "title": "HeiTuz apparel dynamic full-set folder contract",
   "type": "object",
   "additionalProperties": false,
   "required": ["schema_version", "folder_id", "source_folder", "sources", "mpw_folder_master", "qc_contract", "outputs"],

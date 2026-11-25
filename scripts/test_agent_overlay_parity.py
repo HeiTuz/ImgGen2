@@ -95,7 +95,7 @@ class AgentOverlayParityTest(unittest.TestCase):
             with self.subTest(host=host):
                 frontmatter, _ = split_frontmatter((ROOT / "agents" / host / "SKILL.md").read_text(encoding="utf-8"))
                 source = frontmatter_value(frontmatter, "canonical_source")
-                self.assertEqual(source, f"HeiTuz/ImgGen2 SKILL.md v{self.package_version}")
+                self.assertEqual(source, f"HeiTuz/heituz-skill SKILL.md v{self.package_version}")
 
     def test_normalized_rule_body_matches_canonical(self) -> None:
         for host in HOSTS:

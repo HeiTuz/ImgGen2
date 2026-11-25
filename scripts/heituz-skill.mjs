@@ -5,16 +5,16 @@ import os from "node:os";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
 
-const IMGGEN_REPO = "github:HeiTuz/ImgGen2";
-export const MPW_PLUGIN_NOTICE = "MPW is installed as the plugin mpw@heituz, not by ImgGen2. Codex: codex plugin marketplace add HeiTuz/heituz-plugins && codex plugin add mpw@heituz. Claude Code: claude plugin marketplace add HeiTuz/heituz-plugins && claude plugin install mpw@heituz.";
+const SKILL_REPO = "github:HeiTuz/heituz-skill";
+export const MPW_PLUGIN_NOTICE = "MPW is installed as the plugin mpw@heituz, not by HeiTuz. Codex: codex plugin marketplace add HeiTuz/heituz-plugins && codex plugin add mpw@heituz. Claude Code: claude plugin marketplace add HeiTuz/heituz-plugins && claude plugin install mpw@heituz.";
 
-const REPAIR_COMMAND = "bunx --package github:HeiTuz/ImgGen2 imggen-imggen2 -- --component imggen2 --force --register";
+const REPAIR_COMMAND = "bunx --package github:HeiTuz/heituz-skill heituz-skill -- --component heituz --force --register";
 export function selectedComponents(installation, requested = null) {
-  if (requested !== null && !["imggen2", "mpw", "all"].includes(requested)) throw new Error("--component must be imggen2, mpw, or all");
-  const values = requested !== null ? (requested === "all" ? ["imggen2", "mpw"] : [requested]) : (installation.components || ["imggen2"]);
-  if (!Array.isArray(values) || !values.length || values.some((value) => !["imggen2", "mpw"].includes(value))) throw new Error("Invalid installation components");
+  if (requested !== null && !["heituz", "mpw", "all"].includes(requested)) throw new Error("--component must be heituz, mpw, or all");
+  const values = requested !== null ? (requested === "all" ? ["heituz", "mpw"] : [requested]) : (installation.components || ["heituz"]);
+  if (!Array.isArray(values) || !values.length || values.some((value) => !["heituz", "mpw"].includes(value))) throw new Error("Invalid installation components");
   // MPW moved to the mpw@heituz plugin; a legacy or requested "mpw" component selects nothing here.
-  return values.includes("imggen2") ? ["imggen2"] : [];
+  return values.includes("heituz") ? ["heituz"] : [];
 }
 
 export function mentionsMpw(manifest, requested = null) {
@@ -30,9 +30,9 @@ export function locations() {
   const home = os.homedir();
   const windows = platform() === "win32";
   const config = windows
-    ? path.join(process.env.APPDATA || path.join(home, "AppData", "Roaming"), "ImgGen2")
-    : path.join(process.env.XDG_CONFIG_HOME || path.join(home, ".config"), "imggen");
-  const bin = windows ? path.join(process.env.LOCALAPPDATA || path.join(home, "AppData", "Local"), "ImgGen2", "bin") : path.join(home, ".local", "bin");
+    ? path.join(process.env.APPDATA || path.join(home, "AppData", "Roaming"), "heituz-skill")
+    : path.join(process.env.XDG_CONFIG_HOME || path.join(home, ".config"), "heituz-skill");
+  const bin = windows ? path.join(process.env.LOCALAPPDATA || path.join(home, "AppData", "Local"), "heituz-skill", "bin") : path.join(home, ".local", "bin");
   return { home, windows, config, bin, manifest: path.join(config, "installation.json") };
 }
 
@@ -50,7 +50,7 @@ export function assertPersistentTargets(manifest, { windows = locations().window
   if (!windows) return;
   for (const installation of manifestInstallations(manifest)) {
     const selected = selectedComponents(installation);
-    for (const [label, candidate] of [["ImgGen2", selected.includes("imggen2") && installation.imggen2_target]]) {
+    for (const [label, candidate] of [["HeiTuz", selected.includes("heituz") && installation.imggen2_target]]) {
       if (isTransientWindowsPath(candidate, env)) {
         throw new Error(`${label} target is inside a transient TEMP/npx/bunx path: ${candidate}`);
       }
@@ -61,8 +61,8 @@ export function assertPersistentTargets(manifest, { windows = locations().window
 function inferredAgentHost(home, installation) {
   const normalized = (value) => path.resolve(value);
   for (const host of ["claude", "codex"]) {
-    const imggen = path.join(home, `.${host}`, "skills", "ImgGen2");
-    if (normalized(installation.imggen2_target) === normalized(imggen)) return host;
+    const skillDir = path.join(home, `.${host}`, "skills", "HeiTuz");
+    if (normalized(installation.imggen2_target) === normalized(skillDir)) return host;
   }
   return null;
 }
@@ -128,7 +128,7 @@ export function installationHealth(manifest, loc = locations()) {
   const target_status = installations.map((installation) => {
     const imggen2_exists = Boolean(installation.imggen2_target && fs.existsSync(installation.imggen2_target));
     const imggen2_version = installation.imggen2_target ? installedVersion(installation.imggen2_target) : null;
-    const imageManaged = selectedComponents(installation).includes("imggen2");
+    const imageManaged = selectedComponents(installation).includes("heituz");
     const status = {
       components: selectedComponents(installation),
       agent_host: installation.agent_host || null,
@@ -137,23 +137,23 @@ export function installationHealth(manifest, loc = locations()) {
       imggen2_version,
     };
     if (imageManaged && !installation.imggen2_target) problems.push("manifest target is incomplete");
-    if (imageManaged && !imggen2_exists) problems.push(`ImgGen2 target missing: ${installation.imggen2_target}`);
-    else if (imageManaged && !fs.existsSync(path.join(installation.imggen2_target, "scripts", "imggen.mjs"))) problems.push(`updater missing from ${installation.imggen2_target}`);
-    if (imageManaged && !imggen2_version) problems.push(`ImgGen2 installed version unreadable at ${installation.imggen2_target}`);
+    if (imageManaged && !imggen2_exists) problems.push(`HeiTuz target missing: ${installation.imggen2_target}`);
+    else if (imageManaged && !fs.existsSync(path.join(installation.imggen2_target, "scripts", "heituz-skill.mjs"))) problems.push(`updater missing from ${installation.imggen2_target}`);
+    if (imageManaged && !imggen2_version) problems.push(`HeiTuz installed version unreadable at ${installation.imggen2_target}`);
     if (installation.agent_host === "hermes") problems.push("Hermes installations are no longer supported; reinstall with --agent codex or --agent claude");
     return status;
   });
   const launcher_surfaces = loc.windows
     ? {
-        cmd: path.join(loc.bin, "imggen.cmd"),
-        powershell: path.join(loc.bin, "imggen.ps1"),
-        git_bash: path.join(loc.home, ".local", "bin", "imggen"),
+        cmd: path.join(loc.bin, "heituz-skill.cmd"),
+        powershell: path.join(loc.bin, "heituz-skill.ps1"),
+        git_bash: path.join(loc.home, ".local", "bin", "heituz-skill"),
       }
-    : { posix: path.join(loc.bin, "imggen") };
+    : { posix: path.join(loc.bin, "heituz-skill") };
   const launcherExpectations = loc.windows
-    ? { cmd: /%APPDATA%\\ImgGen2\\imggen\.mjs/iu, powershell: /\$env:APPDATA\\ImgGen2\\imggen\.mjs/iu, git_bash: /\$appdata\/HeiTuz\/imggen\.mjs/u }
-    : { posix: /imggen\.mjs/u };
-  for (const [surface, launcher] of (installations.some((installation) => selectedComponents(installation).includes("imggen2")) ? Object.entries(launcher_surfaces) : [])) {
+    ? { cmd: /%APPDATA%\\heituz-skill\\heituz-skill\.mjs/iu, powershell: /\$env:APPDATA\\heituz-skill\\heituz-skill\.mjs/iu, git_bash: /\$appdata\/heituz-skill\/heituz-skill\.mjs/u }
+    : { posix: /heituz-skill\.mjs/u };
+  for (const [surface, launcher] of (installations.some((installation) => selectedComponents(installation).includes("heituz")) ? Object.entries(launcher_surfaces) : [])) {
     if (!fs.existsSync(launcher)) {
       problems.push(`${surface} launcher missing: ${launcher}`);
       continue;
@@ -227,13 +227,13 @@ function usage(code = 0) {
   out(`HeiTuz unified updater
 
 Usage:
-  imggen update [--component imggen2] [--dry-run] [--codex]
-  imggen status
-  imggen vision-qc setup
-  imggen vision-qc status
+  heituz-skill update [--component heituz] [--dry-run] [--codex]
+  heituz-skill status
+  heituz-skill vision-qc setup
+  heituz-skill vision-qc status
 
 Commands:
-  update       Refresh the registered ImgGen2 installations.
+  update       Refresh the registered HeiTuz installations.
                Codex updates only when missing or when --codex is supplied.
                MPW is the separate plugin mpw@heituz (github.com/HeiTuz/heituz-plugins).
   status       Print the recorded installation targets.
@@ -242,8 +242,8 @@ Commands:
   process.exit(code);
 }
 
-export function imggenUpdateArgs(manifest, { interactive }) {
-  const args = ["--package", IMGGEN_REPO, "imggen-imggen2", "--", "--component", "imggen2"];
+export function skillUpdateArgs(manifest, { interactive }) {
+  const args = ["--package", SKILL_REPO, "heituz-skill", "--", "--component", "heituz"];
   if (manifest.agent_host) args.push("--agent", manifest.agent_host);
   args.push("--target", manifest.imggen2_target, "--force", "--skip-codex", "--no-register");
   // Per-host saved QC settings remain owned by the installed configuration.
@@ -262,23 +262,23 @@ export function update(manifest, { dryRun, forceCodex, component = null, interac
   if (mentionsMpw(manifest, component)) console.log(MPW_PLUGIN_NOTICE);
   const installations = manifestInstallations(manifest).map((installation) => ({ ...installation, components: selectedComponents(installation, component) }));
   if (installations.some((installation) => installation.agent_host === "hermes")) {
-    throw new Error("Hermes installations are no longer supported; reinstall ImgGen2 with --agent codex or --agent claude.");
+    throw new Error("Hermes installations are no longer supported; reinstall HeiTuz with --agent codex or --agent claude.");
   }
   assertPersistentTargets({ installations }, { windows });
-  if (installations.some((installation) => installation.components.includes("imggen2") && !installation.imggen2_target)) {
-    throw new Error("Installation manifest is incomplete; rerun the ImgGen2 installer.");
+  if (installations.some((installation) => installation.components.includes("heituz") && !installation.imggen2_target)) {
+    throw new Error("Installation manifest is incomplete; rerun the HeiTuz installer.");
   }
-  if (forceCodex && !installations.some((installation) => installation.components.includes("imggen2"))) throw new Error("--codex requires the ImgGen2 component");
-  if (installations.some((installation) => installation.components.includes("imggen2")) && (forceCodex || !codexExists(windows))) {
+  if (forceCodex && !installations.some((installation) => installation.components.includes("heituz"))) throw new Error("--codex requires the HeiTuz component");
+  if (installations.some((installation) => installation.components.includes("heituz")) && (forceCodex || !codexExists(windows))) {
     const plan = codexInstallCommand(windows);
     run(plan.command, plan.args, { dryRun, label: "official Codex CLI install/update" });
   }
   const bunCommand = dryRun ? "bun" : ensureBun(windows);
   for (const installation of installations) {
     const hostLabel = installation.agent_host ? ` (${installation.agent_host})` : "";
-    if (installation.components.includes("imggen2")) {
-      const imggen = packageInvocation(windows, imggenUpdateArgs(installation, { interactive }), bunCommand);
-      run(imggen.command, imggen.args, { dryRun, label: `ImgGen2 update${hostLabel}` });
+    if (installation.components.includes("heituz")) {
+      const skill = packageInvocation(windows, skillUpdateArgs(installation, { interactive }), bunCommand);
+      run(skill.command, skill.args, { dryRun, label: `HeiTuz update${hostLabel}` });
     }
   }
   if (!dryRun) {
@@ -292,7 +292,7 @@ function main(argv) {
   const tail = argv.slice(1);
   let component = null;
   for (let index = 0; index < tail.length; index += 1) {
-    if (tail[index] === "--component") { component = tail[index + 1]; if (!component || component.startsWith("--")) throw new Error("--component needs imggen2"); tail.splice(index, 2); index -= 1; }
+    if (tail[index] === "--component") { component = tail[index + 1]; if (!component || component.startsWith("--")) throw new Error("--component needs heituz"); tail.splice(index, 2); index -= 1; }
     else if (tail[index].startsWith("--component=")) { component = tail[index].slice(12); tail.splice(index, 1); index -= 1; }
   }
   if (component !== null) selectedComponents({}, component);
@@ -321,7 +321,7 @@ function main(argv) {
     const action = argv[1] || "setup";
     if (!new Set(["setup", "status"]).has(action) || argv.length !== 2) usage(2);
     const setup = path.join(data.imggen2_target, "scripts", "vision_qc_setup.mjs");
-    if (!fs.existsSync(setup)) throw new Error("Vision-QC setup is unavailable; run imggen update.");
+    if (!fs.existsSync(setup)) throw new Error("Vision-QC setup is unavailable; run heituz-skill update.");
     run(process.execPath, [setup, ...(action === "status" ? ["--status"] : [])], { label: "Vision-QC setup" });
     return;
   }
@@ -337,7 +337,7 @@ if (!process.env.HEITUZ_INSTALLER_IMPORT) {
   try {
     main(process.argv.slice(2));
   } catch (error) {
-    console.error(`imggen: ${error.message}`);
+    console.error(`heituz-skill: ${error.message}`);
     process.exitCode = 1;
   }
 }

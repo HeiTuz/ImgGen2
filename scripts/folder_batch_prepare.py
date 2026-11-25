@@ -277,7 +277,7 @@ def prepare(args: argparse.Namespace) -> dict[str, Any]:
     by_name = {row["file"]: row for row in roles}
     folder_id = source.name
     source_hash = hashlib.sha256(str(source).encode("utf-8")).hexdigest()[:12]
-    default_root = Path(tempfile.gettempdir()) / "imggen-imggen2-folder-batch" / f"{folder_id}-{source_hash}"
+    default_root = Path(tempfile.gettempdir()) / "heituz-skill-folder-batch" / f"{folder_id}-{source_hash}"
     work_root = _check_overlap(source, Path(args.work_root) if args.work_root else default_root)
     sources = [path.name for path in candidates]
     outputs = [{"id": unicodedata.normalize("NFC", path.stem), "filename": unicodedata.normalize("NFC", path.stem) + ".png", "prompt": _prompt(by_name[path.name])} for path in candidates]

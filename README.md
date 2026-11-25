@@ -1,28 +1,28 @@
 <div align="center">
 
-![ImgGen2 — From brief to verified image](https://raw.githubusercontent.com/HeiTuz/ImgGen2/main/.github/assets/hero.svg)
+![HeiTuz — From brief to verified image](https://raw.githubusercontent.com/HeiTuz/heituz-skill/main/.github/assets/hero.svg)
 
 **한 장의 아이디어를, 검수한 이미지 파일로.**
 
-[![Release](https://img.shields.io/github/v/release/HeiTuz/ImgGen2?style=flat-square&color=264d43)](https://github.com/HeiTuz/ImgGen2/releases/latest) [![CI](https://img.shields.io/github/actions/workflow/status/HeiTuz/ImgGen2/ci.yml?branch=main&style=flat-square&label=Windows%20%C2%B7%20macOS%20%C2%B7%20Linux)](https://github.com/HeiTuz/ImgGen2/actions) [![MIT](https://img.shields.io/badge/license-MIT-334e5b?style=flat-square)](LICENSE)
+[![Release](https://img.shields.io/github/v/release/HeiTuz/heituz-skill?style=flat-square&color=264d43)](https://github.com/HeiTuz/heituz-skill/releases/latest) [![CI](https://img.shields.io/github/actions/workflow/status/HeiTuz/heituz-skill/ci.yml?branch=main&style=flat-square&label=Windows%20%C2%B7%20macOS%20%C2%B7%20Linux)](https://github.com/HeiTuz/heituz-skill/actions) [![MIT](https://img.shields.io/badge/license-MIT-334e5b?style=flat-square)](LICENSE)
 
 [설치](#설치) · [무엇을 만들 수 있나요](#무엇을-만들-수-있나요) · [사용법](#사용법) · [업데이트](#업데이트) · [문서](#문서)
 
 </div>
 
-ImgGen2는 Codex 구독 경로로 이미지를 만들고, 레퍼런스가 필요한 작업은 원본과 비교하며, 실패한 컷만 다시 만드는 에이전트 스킬입니다. **정확한 수량, 이어서 작업하기, 실제 파일 확인**까지 한 흐름으로 다룹니다.
+HeiTuz는 Codex 구독 경로로 이미지를 만들고, 레퍼런스가 필요한 작업은 원본과 비교하며, 실패한 컷만 다시 만드는 에이전트 스킬입니다. **정확한 수량, 이어서 작업하기, 실제 파일 확인**까지 한 흐름으로 다룹니다.
 
-MPW는 프롬프트를 만드는 별도 플러그인 `mpw@heituz`입니다. 2.0.0부터 ImgGen2 설치기는 ImgGen2만 설치합니다. MPW는 [HeiTuz 마켓플레이스](https://github.com/HeiTuz/heituz-plugins)에서 설치하세요.
+MPW는 프롬프트를 만드는 별도 플러그인 `mpw@heituz`입니다. 2.0.0부터 HeiTuz 설치기는 HeiTuz만 설치합니다. MPW는 [HeiTuz 마켓플레이스](https://github.com/HeiTuz/heituz-plugins)에서 설치하세요.
 
 ## 설치
 
 ### 명령은 하나
 
 ```sh
-bunx --package github:HeiTuz/ImgGen2 imggen-imggen2
+bunx --package github:HeiTuz/heituz-skill heituz-skill
 ```
 
-일반 터미널에서 실행하면 설치할 에이전트 호스트(Codex 또는 Claude Code)를 고릅니다. 이미지 스킬, QC 설정, `imggen` 도우미를 설치하고, Codex CLI가 없으면 함께 설치합니다.
+일반 터미널에서 실행하면 설치할 에이전트 호스트(Codex 또는 Claude Code)를 고릅니다. 이미지 스킬, QC 설정, `heituz-skill` 도우미를 설치하고, Codex CLI가 없으면 함께 설치합니다.
 
 > Node.js **18 이상**과 Git이 필요합니다. 이미지 제작에는 Python과 로그인된 공식 Codex CLI가 필요하며, CI는 Python 3.12에서 검증합니다. 스킬 설치만으로 이미지 생성이 시작되거나 계정에 로그인되지는 않습니다.
 
@@ -35,16 +35,16 @@ codex plugin marketplace add HeiTuz/heituz-plugins && codex plugin add mpw@heitu
 claude plugin marketplace add HeiTuz/heituz-plugins && claude plugin install mpw@heituz
 ```
 
-Bun이 없는 새 환경에서는 아래 명령이 [공식 설치기](https://bun.com/docs/installation)로 최신 안정판을 설치하고 곧바로 ImgGen2를 설치합니다. 이미 Bun이 있으면 그대로 사용합니다. `imggen update`도 Bun이 없으면 공식 설치기를 자동 실행합니다.
+Bun이 없는 새 환경에서는 아래 명령이 [공식 설치기](https://bun.com/docs/installation)로 최신 안정판을 설치하고 곧바로 HeiTuz를 설치합니다. 이미 Bun이 있으면 그대로 사용합니다. `heituz-skill update`도 Bun이 없으면 공식 설치기를 자동 실행합니다.
 
 ```sh
-bun_cmd="$(command -v bun || true)"; if [ -z "$bun_cmd" ]; then curl -fsSL https://bun.com/install | bash; bun_cmd="${BUN_INSTALL:-$HOME/.bun}/bin/bun"; fi; "$bun_cmd" x --package github:HeiTuz/ImgGen2 imggen-imggen2
+bun_cmd="$(command -v bun || true)"; if [ -z "$bun_cmd" ]; then curl -fsSL https://bun.com/install | bash; bun_cmd="${BUN_INSTALL:-$HOME/.bun}/bin/bun"; fi; "$bun_cmd" x --package github:HeiTuz/heituz-skill heituz-skill
 ```
 
 Windows PowerShell:
 
 ```powershell
-$bun = (Get-Command bun -ErrorAction SilentlyContinue).Source; if (!$bun) { irm https://bun.com/install.ps1 | iex; $root = if ($env:BUN_INSTALL) { $env:BUN_INSTALL } else { "$HOME\.bun" }; $bun = Join-Path $root 'bin\bun.exe' }; & $bun x --package github:HeiTuz/ImgGen2 imggen-imggen2
+$bun = (Get-Command bun -ErrorAction SilentlyContinue).Source; if (!$bun) { irm https://bun.com/install.ps1 | iex; $root = if ($env:BUN_INSTALL) { $env:BUN_INSTALL } else { "$HOME\.bun" }; $bun = Join-Path $root 'bin\bun.exe' }; & $bun x --package github:HeiTuz/heituz-skill heituz-skill
 ```
 
 **CI·비대화형 실행과 `--dry-run`은 질문하지 않습니다.** 자동화에서는 `--agent`를 지정하세요. 이미 설치된 스킬을 교체할 때만 `--force`를 붙입니다.
@@ -54,16 +54,16 @@ $bun = (Get-Command bun -ErrorAction SilentlyContinue).Source; if (!$bun) { irm 
 
 ```sh
 # Codex에 설치
-bunx --package github:HeiTuz/ImgGen2 imggen-imggen2 -- --agent codex
+bunx --package github:HeiTuz/heituz-skill heituz-skill -- --agent codex
 
 # 파일을 쓰기 전에 계획 확인
-bunx --package github:HeiTuz/ImgGen2 imggen-imggen2 -- --agent codex --dry-run
+bunx --package github:HeiTuz/heituz-skill heituz-skill -- --agent codex --dry-run
 ```
 
-| `--agent` | ImgGen2 경로 |
+| `--agent` | HeiTuz 경로 |
 | --- | --- |
-| `codex` | `~/.codex/skills/ImgGen2` |
-| `claude` | `~/.claude/skills/ImgGen2` |
+| `codex` | `~/.codex/skills/HeiTuz` |
+| `claude` | `~/.claude/skills/HeiTuz` |
 
 `--agent all`은 감지한 호스트 전체를 뜻합니다. 비대화형 호스트 자동 감지는 `claude > codex` 순서이며, 감지 결과가 없으면 Codex를 사용합니다. Hermes 대상은 2.0.0에서 제거됐습니다.
 
@@ -74,7 +74,7 @@ bunx --package github:HeiTuz/ImgGen2 imggen-imggen2 -- --agent codex --dry-run
 
 ## 무엇을 만들 수 있나요
 
-| 작업 | 요청 예시 | ImgGen2가 챙기는 것 |
+| 작업 | 요청 예시 | HeiTuz가 챙기는 것 |
 | --- | --- | --- |
 | **한 장의 장면** | “파란 도자기 컵, 린넨 위의 부드러운 자연광” | 파일 생성, PNG 형식·크기·해시 확인 |
 | **레퍼런스 편집** | “제품의 색과 봉제는 그대로, 배경만 바꿔줘” | 원본의 관찰 가능한 특징과 변경 범위 |
@@ -84,7 +84,7 @@ bunx --package github:HeiTuz/ImgGen2 imggen-imggen2 -- --agent codex --dry-run
 
 ### 실제 생성 결과
 
-![Codex 구독 경로로 생성한 파란 도자기 컵](https://raw.githubusercontent.com/HeiTuz/ImgGen2/main/.github/assets/blue-cup.png)
+![Codex 구독 경로로 생성한 파란 도자기 컵](https://raw.githubusercontent.com/HeiTuz/heituz-skill/main/.github/assets/blue-cup.png)
 
 <sub>v1.13.0 릴리스 파일럿 · Codex 구독 경로 · 1402 × 1122 PNG. 파일 구조·해시·픽셀 디코딩과 화면 확인을 마친 실제 생성물입니다. 레퍼런스 재현력이나 종합 화질의 비교 평가를 뜻하지는 않습니다.</sub>
 
@@ -93,7 +93,7 @@ bunx --package github:HeiTuz/ImgGen2 imggen-imggen2 -- --agent codex --dry-run
 스킬이 설치된 에이전트에게 작업을 요청하세요.
 
 ```text
-ImgGen2로 이 제품 사진을 상세페이지용 6장으로 만들어줘.
+HeiTuz로 이 제품 사진을 상세페이지용 6장으로 만들어줘.
 색·실루엣·소재·로고는 유지해.
 포켓과 원단 디테일을 각각 한 장 포함하고, 흰 배경으로 통일해.
 ```
@@ -160,43 +160,45 @@ python scripts/creative_batch.py --prompt "독립잡지풍 검은 고양이" --s
 ## 업데이트
 
 ```sh
-# 등록된 ImgGen2 갱신
-imggen update
+# 등록된 HeiTuz 갱신
+heituz-skill update
 
 # 실행 계획만 확인
-imggen update --dry-run
+heituz-skill update --dry-run
 ```
 
-`imggen update`는 Bun으로 공개 ImgGen2를 갱신합니다. Bun이 없으면 공식 설치기를 통해 최신 안정판을 먼저 설치합니다. 1.x에서 MPW까지 등록했다면 첫 업데이트 때 설치 기록에서 MPW 항목을 지우고 플러그인 설치 방법을 안내합니다. MPW는 `codex plugin marketplace upgrade heituz` 또는 `claude plugin update mpw@heituz`로 갱신합니다.
+`heituz-skill update`는 Bun으로 공개 HeiTuz를 갱신합니다. Bun이 없으면 공식 설치기를 통해 최신 안정판을 먼저 설치합니다. 1.x에서 MPW까지 등록했다면 첫 업데이트 때 설치 기록에서 MPW 항목을 지우고 플러그인 설치 방법을 안내합니다. MPW는 `codex plugin marketplace upgrade heituz` 또는 `claude plugin update mpw@heituz`로 갱신합니다.
 
-다시 등록하면 이번에 고른 호스트가 `imggen`의 갱신 대상으로 저장됩니다.
+다시 등록하면 이번에 고른 호스트가 `heituz-skill`의 갱신 대상으로 저장됩니다.
 
-`imggen update`는 내부적으로 `--no-register`로 실행되므로 전역 런처(`~/.config/imggen/imggen.mjs`)와 설치 기록(`installation.json`)은 갱신하지 않고, 설치 기록에 등록된 호스트마다 스킬 파일을 하나씩 교체합니다. 런처까지 새 버전으로 바꾸려면 `--register`를 붙여 설치기를 다시 실행하세요. 호스트를 여러 개 쓴다면 `--agent`(`claude`, `codex`, `all`)로 대상을 명시하세요.
+`heituz-skill update`는 내부적으로 `--no-register`로 실행되므로 전역 런처(`~/.config/heituz-skill/heituz-skill.mjs`)와 설치 기록(`installation.json`)은 갱신하지 않고, 설치 기록에 등록된 호스트마다 스킬 파일을 하나씩 교체합니다. 런처까지 새 버전으로 바꾸려면 `--register`를 붙여 설치기를 다시 실행하세요. 호스트를 여러 개 쓴다면 `--agent`(`claude`, `codex`, `all`)로 대상을 명시하세요.
 
 ```sh
-bunx --package github:HeiTuz/ImgGen2 imggen-imggen2 -- --component imggen2 --force --register
+bunx --package github:HeiTuz/heituz-skill heituz-skill -- --component heituz --force --register
 ```
 
 `--codex`를 추가하면 공식 Codex CLI도 갱신합니다. 1.x에서 Hermes에 등록한 설치는 갱신하지 않고 `--agent codex` 또는 `--agent claude`로 다시 설치하라고 안내합니다.
 
+**이전 이름(ImgGen2)으로 설치했다면** 자동으로 옮겨 주지 않으니 새로 설치하세요. 설치가 끝나면 옛 설치 폴더(`~/.claude/skills/ImgGen2`, `~/.codex/skills/ImgGen2`), 옛 런처(`~/.local/bin/imggen`), 옛 설정 폴더(`~/.config/imggen`)를 지우면 됩니다. Windows는 `%APPDATA%\ImgGen2`와 `%LOCALAPPDATA%\ImgGen2`입니다. 옛 `imggen update`는 이전 저장소 주소로 이어지니 새 설치기로 바꿔야 합니다.
+
 <details>
 <summary><strong>설치 문제 해결 · 오프라인 · Windows</strong></summary>
 
-- `imggen status`로 실제 경로·버전·등록 상태를 확인합니다. MPW 플러그인 설치 여부는 ImgGen2 상태에 영향을 주지 않습니다.
-- 온라인 ImgGen2 설치는 필요하면 공식 Codex CLI와 Pillow 설치를 시도합니다. 로그인은 사용자의 Codex 환경에서 진행합니다.
-- `--offline`은 네트워크 설치 없이 ImgGen2 파일만 복사합니다.
+- `heituz-skill status`로 실제 경로·버전·등록 상태를 확인합니다. MPW 플러그인 설치 여부는 HeiTuz 상태에 영향을 주지 않습니다.
+- 온라인 HeiTuz 설치는 필요하면 공식 Codex CLI와 Pillow 설치를 시도합니다. 로그인은 사용자의 Codex 환경에서 진행합니다.
+- `--offline`은 네트워크 설치 없이 HeiTuz 파일만 복사합니다.
 - `--no-register`는 전역 도우미·설치 기록·셸 설정 등록을 생략합니다. 오프라인에서 등록까지 하려면 `--register`를 명시하세요.
 - GitHub 패키지 실행이 패키지 매니저 정책에 막히면 스킬 검색 경로 밖에 소스를 내려받아 설치기를 실행하세요.
 
 ```sh
-git clone https://github.com/HeiTuz/ImgGen2.git ./ImgGen2-source
-node ./ImgGen2-source/scripts/install.mjs --agent codex
+git clone https://github.com/HeiTuz/heituz-skill.git ./HeiTuz-source
+node ./HeiTuz-source/scripts/install.mjs --agent codex
 ```
 
 Windows는 PowerShell·cmd·Git Bash에서 사용할 수 있습니다. 공백·한글·UNC 경로를 지원하며, 다른 OS의 `/Users/...` 경로를 Windows 경로로 추측하지 않습니다. 구형 launcher 복구는 다음 명령을 사용합니다.
 
 ```sh
-npx --yes --allow-git=all --package github:HeiTuz/ImgGen2 imggen-imggen2 -- --agent codex --force --register
+npx --yes --allow-git=all --package github:HeiTuz/heituz-skill heituz-skill -- --agent codex --force --register
 ```
 
 자세한 경로 규칙은 [실행 계약](references/execution-contract.md), 상품 공유폴더 사용법은 [폴더 배치 예제](examples/dint-shared-folder-apparel-batch.md)를 참고하세요.

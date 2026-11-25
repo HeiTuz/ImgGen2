@@ -1,13 +1,13 @@
 {
-  "name": "imggen-imggen2-skill",
+  "name": "heituz-skill",
   "version": "2.0.1",
   "private": false,
   "description": "Provenance-safe ChatGPT subscription image production skill.",
   "license": "MIT",
   "type": "module",
   "bin": {
-    "imggen-imggen2": "scripts/install.mjs",
-    "imggen-imggen2-install": "scripts/install.mjs"
+    "heituz-skill": "scripts/install.mjs",
+    "heituz-skill-install": "scripts/install.mjs"
   },
   "files": [
     "SKILL.md",

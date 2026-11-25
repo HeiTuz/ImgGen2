@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Resumable, provenance-safe batch orchestration for ImgGen2.
+"""Resumable, provenance-safe batch orchestration for HeiTuz.
 
 Dry-run is the default. Live execution requires only --execute; the manifest and
 approval digests stay in provenance to detect resume/config drift, and no
@@ -730,7 +730,7 @@ def build_summary(ledger: Mapping[str, object]) -> dict[str, object]:
 def summary_markdown(summary: Mapping[str, object]) -> str:
     provenance = summary.get("codex_provenance", {})
     lines = [
-        "# ImgGen2 batch summary",
+        "# HeiTuz batch summary",
         "",
         f"Manifest: `{summary['manifest_sha256']}`",
         f"Codex: `{provenance.get('path')}` ({provenance.get('source')}, version {provenance.get('version')})",

@@ -19,7 +19,7 @@ import {
 const source = fs.realpathSync(path.join(path.dirname(fileURLToPath(import.meta.url)), ".."));
 const args = process.argv.slice(2);
 export const ALLOWED_ROOTS = new Set(["SKILL.md", "README.md", "LICENSE", "package.json", "agents", "contracts", "examples", "references", "scripts"]);
-export const COMPONENTS = new Set(["imggen2", "mpw", "all"]);
+export const COMPONENTS = new Set(["heituz", "mpw", "all"]);
 const VISION_QC_MODES = new Set(["auto", "off"]);
 const AGENT_TARGETS = new Set(["auto", "all", ...AGENT_HOST_PRIORITY, "gpt"]);
 
@@ -58,26 +58,26 @@ export function normalizeInstallerPath(value, platform = process.platform, cwd =
 
 function usage(code = 0) {
   const out = code === 0 ? console.log : console.error;
-  out(`ImgGen2 unified installer
+  out(`HeiTuz unified installer
 
 Usage:
-  bunx --package github:HeiTuz/ImgGen2 imggen-imggen2 -- [options]
+  bunx --package github:HeiTuz/heituz-skill heituz-skill -- [options]
 
 Options:
-  --component <choice>   imggen2 (default); mpw or all only print MPW plugin guidance
+  --component <choice>   heituz (default); mpw or all only print MPW plugin guidance
   --agent <host>         Agent host: auto (default), all, claude, or codex
-  --target <directory>   Explicit ImgGen2 installation directory
+  --target <directory>   Explicit HeiTuz installation directory
   --force                Replace existing destinations for the selected components
   --skip-codex           Do not install/update the official Codex CLI
-  --skip-mpw             Compatibility alias for --component imggen2
+  --skip-mpw             Compatibility alias for --component heituz
   --vision-qc <mode>     Configure QC: auto (host default Vision model) or off
   --dry-run              Print the platform plan without writing or downloading
-  --offline              Copy ImgGen2 locally without network installs
-  --register             Also register the global imggen launcher/manifest (default for non-offline installs)
+  --offline              Copy HeiTuz locally without network installs
+  --register             Also register the global heituz-skill launcher/manifest (default for non-offline installs)
   --no-register          Copy files only; leave the global launcher, manifest, and shell profiles untouched
   -h, --help             Show this help
 
-After ImgGen2 install: imggen update [--dry-run] [--codex]
+After HeiTuz install: heituz-skill update [--dry-run] [--codex]
 MPW prompt writing is the separate plugin mpw@heituz: https://github.com/HeiTuz/heituz-plugins
 `);
   process.exit(code);
@@ -130,14 +130,14 @@ export function parse(argv) {
     usage(2);
   }
   if (!AGENT_TARGETS.has(options.agent)) usage(2);
-  if (options.skipMpw && options.component && options.component !== "imggen2") throw new Error("--skip-mpw conflicts with --component; choose imggen2 or remove --skip-mpw.");
+  if (options.skipMpw && options.component && options.component !== "heituz") throw new Error("--skip-mpw conflicts with --component; choose heituz or remove --skip-mpw.");
   if (options.offline) options.skipCodex = true;
   return options;
 }
 
 export async function selectComponent(options) {
-  // MPW moved to the mpw@heituz plugin; ImgGen2 installs only itself.
-  return options.component || "imggen2";
+  // MPW moved to the mpw@heituz plugin; HeiTuz installs only itself.
+  return options.component || "heituz";
 }
 
 const EXCLUDED_PARTS = new Set([".git", ".gjc", ".omx", "node_modules", "docs-internal", "__pycache__"]);
@@ -284,43 +284,12 @@ function configureVisionQc(destination, selection) {
   return config;
 }
 
-function migrateLegacyPath(from, to, label, dryRun = false) {
-  if (!fs.existsSync(from)) return false;
-  if (path.resolve(from) === path.resolve(to)) return false;
-  if (fs.existsSync(to)) {
-    throw new Error(`Legacy ${label} exists at ${from}, but the new destination already exists at ${to}; reconcile the two explicitly instead of overwriting either.`);
-  }
-  if (dryRun) return true;
-  fs.mkdirSync(path.dirname(to), { recursive: true });
-  fs.renameSync(from, to);
-  return true;
-}
-
-export function migrateLegacyInstallPaths(home, loc, { dryRun = false, component = "imggen2" } = {}) {
-  const legacyConfig = loc.windows
-    ? path.join(process.env.APPDATA || path.join(home, "AppData", "Roaming"), "HeiTuz")
-    : path.join(process.env.XDG_CONFIG_HOME || path.join(home, ".config"), "heituz");
-  const moves = [
-    [legacyConfig, loc.config, "ImgGen2 config"],
-  ];
-  const seen = new Set();
-  return moves.filter(([from, to, label]) => {
-    if (!fs.existsSync(from)) return false;
-    const info = fs.statSync(from);
-    const identity = `${info.dev}:${info.ino}`;
-    if (seen.has(identity)) return false;
-    seen.add(identity);
-    return migrateLegacyPath(from, to, label, dryRun);
-  }).map(([from, to]) => ({ from, to }));
-}
-
-
 export function hostInstallPlan(homeDir, host) {
   const normalized = normalizeAgentHost(host);
   if (!AGENT_HOST_PRIORITY.includes(normalized)) throw new Error(`Unsupported agent host: ${host}`);
   return {
     host: normalized,
-    destination: path.resolve(path.join(homeDir, `.${normalized}`, "skills", "ImgGen2")),
+    destination: path.resolve(path.join(homeDir, `.${normalized}`, "skills", "HeiTuz")),
   };
 }
 
@@ -390,7 +359,7 @@ function validateDestination(destination, loc) {
   }
 }
 
-function prepareInstallPlans(plans, force, loc, components = ["imggen2"]) {
+function prepareInstallPlans(plans, force, loc, components = ["heituz"]) {
   const destinations = plans.map((plan) => plan.destination);
   for (let index = 0; index < destinations.length; index += 1) {
     const destination = destinations[index];
@@ -410,7 +379,7 @@ export function installPlansTransaction(plans, visionQc, { sourceRoot = source }
     for (const plan of plans) {
       const parent = path.dirname(plan.destination);
       fs.mkdirSync(parent, { recursive: true });
-      const stageRoot = fs.mkdtempSync(path.join(parent, ".imggenimggen2-stage-"));
+      const stageRoot = fs.mkdtempSync(path.join(parent, ".heituz-skill-stage-"));
       const payload = path.join(stageRoot, "payload");
       staged.push({ ...plan, stageRoot, payload });
       installPayload({ sourceRoot, destination: payload, host: plan.host });
@@ -421,7 +390,7 @@ export function installPlansTransaction(plans, visionQc, { sourceRoot = source }
     try {
       for (let index = 0; index < staged.length; index += 1) {
         const item = staged[index];
-        const backup = `${item.destination}.imggenimggen2-backup-${process.pid}-${Date.now()}-${index}`;
+        const backup = `${item.destination}.heituz-skill-backup-${process.pid}-${Date.now()}-${index}`;
         const hadDestination = fs.existsSync(item.destination);
         if (hadDestination) fs.renameSync(item.destination, backup);
         try {
@@ -452,21 +421,19 @@ export async function main(argv = args) {
   const options = parse(argv);
   const component = await selectComponent(options);
   process.env.HEITUZ_INSTALLER_IMPORT = "1";
-  const helper = await import(pathToFileURL(path.join(source, "scripts", "imggen.mjs")).href);
+  const helper = await import(pathToFileURL(path.join(source, "scripts", "heituz-skill.mjs")).href);
   delete process.env.HEITUZ_INSTALLER_IMPORT;
-  if (component !== "imggen2" || options.mpwTarget) console.warn(helper.MPW_PLUGIN_NOTICE);
+  if (component !== "heituz" || options.mpwTarget) console.warn(helper.MPW_PLUGIN_NOTICE);
   if (component === "mpw") return;
-  const components = ["imggen2"];
+  const components = ["heituz"];
   const installImages = true;
   const loc = helper.locations();
-  const migratedLegacyPaths = migrateLegacyInstallPaths(loc.home, loc, { dryRun: options.dryRun, component });
   const plans = await resolveInstallPlans(options, loc.home);
   const primary = plans[0];
   const visionQc = installImages ? await selectVisionQc(options) : { requested: "off", effective: "off" };
   for (const plan of plans) {
     plan.visionQc = visionQc;
-    const migration = options.dryRun && migratedLegacyPaths.find((move) => path.resolve(move.to) === path.resolve(plan.destination));
-    const previous = path.join(migration ? migration.from : plan.destination, "vision-qc.json");
+    const previous = path.join(plan.destination, "vision-qc.json");
     if (installImages && !options.visionQcExplicit && fs.existsSync(previous)) {
       let saved;
       try { saved = JSON.parse(fs.readFileSync(previous, "utf8")); }
@@ -491,7 +458,6 @@ export async function main(argv = args) {
       codex: helper.codexInstallCommand(loc.windows),
       platform: loc.windows ? "windows" : "posix",
       register,
-      migrated_legacy_paths: migratedLegacyPaths,
       vision_qc: installImages ? {
         requested_mode: primary.visionQc.requested,
         mode: primary.visionQc.effective,
@@ -520,19 +486,19 @@ export async function main(argv = args) {
     run(codexPlan.command, codexPlan.args, { dryRun: false, label: "official Codex CLI install" });
   }
   if (!register) {
-    for (const plan of plans) console.log(`Installed ImgGen2${plan.host ? ` (${plan.host})` : ""} to ${plan.destination}`);
+    for (const plan of plans) console.log(`Installed HeiTuz${plan.host ? ` (${plan.host})` : ""} to ${plan.destination}`);
     console.log("Global launcher and manifest were not registered (offline/test install); rerun with --register to make the first target active.");
     return;
   }
 
   fs.mkdirSync(loc.config, { recursive: true });
-  fs.copyFileSync(path.join(primary.destination, "scripts", "imggen.mjs"), path.join(loc.config, "imggen.mjs"));
+  fs.copyFileSync(path.join(primary.destination, "scripts", "heituz-skill.mjs"), path.join(loc.config, "heituz-skill.mjs"));
   fs.writeFileSync(loc.manifest, JSON.stringify({
     version: 2,
     components,
     agent_host: primary.host,
     imggen2_target: primary.destination,
-    imggen2_repo: "github:HeiTuz/ImgGen2",
+    imggen2_repo: "github:HeiTuz/heituz-skill",
     vision_qc_requested: primary.visionQc.requested,
     vision_qc_mode: primary.visionQc.effective,
     vision_qc_config: visionQcConfigs[0],
@@ -547,19 +513,19 @@ export async function main(argv = args) {
   }, null, 2) + "\n", { mode: 0o600 });
   fs.mkdirSync(loc.bin, { recursive: true });
   if (loc.windows) {
-    const cmdLauncher = path.join(loc.bin, "imggen.cmd");
-    const psLauncher = path.join(loc.bin, "imggen.ps1");
-    const gitBashLauncher = path.join(loc.home, ".local", "bin", "imggen");
-    for (const stale of [path.join(loc.bin, "imggen"), path.join(loc.bin, "imggen.mjs")]) {
+    const cmdLauncher = path.join(loc.bin, "heituz-skill.cmd");
+    const psLauncher = path.join(loc.bin, "heituz-skill.ps1");
+    const gitBashLauncher = path.join(loc.home, ".local", "bin", "heituz-skill");
+    for (const stale of [path.join(loc.bin, "heituz-skill"), path.join(loc.bin, "heituz-skill.mjs")]) {
       fs.rmSync(stale, { force: true });
     }
-    fs.writeFileSync(cmdLauncher, `@echo off\r\nnode "%APPDATA%\\ImgGen2\\imggen.mjs" %*\r\n`);
-    fs.writeFileSync(psLauncher, `& node "$env:APPDATA\\ImgGen2\\imggen.mjs" @args\r\nexit $LASTEXITCODE\r\n`);
+    fs.writeFileSync(cmdLauncher, `@echo off\r\nnode "%APPDATA%\\heituz-skill\\heituz-skill.mjs" %*\r\n`);
+    fs.writeFileSync(psLauncher, `& node "$env:APPDATA\\heituz-skill\\heituz-skill.mjs" @args\r\nexit $LASTEXITCODE\r\n`);
     fs.mkdirSync(path.dirname(gitBashLauncher), { recursive: true });
-    fs.writeFileSync(gitBashLauncher, `#!/bin/sh\nappdata="$APPDATA"\ncase "$appdata" in\n  [A-Za-z]:\\\\*) appdata="$(cygpath -u "$appdata")" ;;\nesac\nexec node "$appdata/ImgGen2/imggen.mjs" "$@"\n`, { mode: 0o755 });
+    fs.writeFileSync(gitBashLauncher, `#!/bin/sh\nappdata="$APPDATA"\ncase "$appdata" in\n  [A-Za-z]:\\\\*) appdata="$(cygpath -u "$appdata")" ;;\nesac\nexec node "$appdata/heituz-skill/heituz-skill.mjs" "$@"\n`, { mode: 0o755 });
     fs.chmodSync(gitBashLauncher, 0o755);
-    const begin = "# >>> imggen user bin >>>";
-    const end = "# <<< imggen user bin <<<";
+    const begin = "# >>> heituz-skill user bin >>>";
+    const end = "# <<< heituz-skill user bin <<<";
     for (const profile of [path.join(loc.home, ".profile"), path.join(loc.home, ".zprofile"), path.join(loc.home, ".bash_profile"), path.join(loc.home, ".bashrc")]) {
       if (!fs.existsSync(profile)) continue;
       const existing = fs.readFileSync(profile, "utf8");
@@ -579,11 +545,11 @@ export async function main(argv = args) {
       run("powershell.exe", ["-NoProfile", "-NonInteractive", "-Command", pathScript], { dryRun: false, label: "Windows user PATH repair" });
     }
   } else {
-    const launcher = path.join(loc.bin, "imggen");
-    fs.writeFileSync(launcher, `#!/bin/sh\nexec node "${path.join(loc.config, "imggen.mjs")}" "$@"\n`, { mode: 0o755 });
+    const launcher = path.join(loc.bin, "heituz-skill");
+    fs.writeFileSync(launcher, `#!/bin/sh\nexec node "${path.join(loc.config, "heituz-skill.mjs")}" "$@"\n`, { mode: 0o755 });
     fs.chmodSync(launcher, 0o755);
-    const begin = "# >>> imggen user bin >>>";
-    const end = "# <<< imggen user bin <<<";
+    const begin = "# >>> heituz-skill user bin >>>";
+    const end = "# <<< heituz-skill user bin <<<";
     for (const profile of [path.join(loc.home, ".profile"), path.join(loc.home, ".zprofile")]) {
       const existing = fs.existsSync(profile) ? fs.readFileSync(profile, "utf8") : "";
       if (!existing.includes(begin)) {
@@ -591,8 +557,8 @@ export async function main(argv = args) {
       }
     }
   }
-  for (const plan of plans) console.log(`Installed ImgGen2${plan.host ? ` (${plan.host})` : ""} to ${plan.destination}`);
-  console.log("Open a new terminal, then run: imggen update");
+  for (const plan of plans) console.log(`Installed HeiTuz${plan.host ? ` (${plan.host})` : ""} to ${plan.destination}`);
+  console.log("Open a new terminal, then run: heituz-skill update");
 }
 
 function isMainModule() {
@@ -605,5 +571,5 @@ function isMainModule() {
 }
 
 if (isMainModule()) {
-  main().catch((error) => { console.error(`ImgGen2 installer: ${error.message}`); process.exitCode = 1; });
+  main().catch((error) => { console.error(`HeiTuz installer: ${error.message}`); process.exitCode = 1; });
 }

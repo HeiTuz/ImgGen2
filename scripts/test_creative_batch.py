@@ -146,7 +146,7 @@ class CreativeBatchTests(unittest.TestCase):
             final = Path(tmp) / "final"
             result = creative_batch.run_creative_batch("cats", "indie editorial", 100, final, batch_runner=dry_runner)
             self.assertFalse(final.exists())
-            self.assertFalse(any(Path(tmp).glob(".final.imggen-work-*")))
+            self.assertFalse(any(Path(tmp).glob(".final.heituz-skill-work-*")))
         self.assertEqual(len(captured["rows"]), 100)
         self.assertEqual(len({row["full_prompt"] for row in captured["rows"]}), 100)
         self.assertTrue(all(row["qc_required"] is False for row in captured["rows"]))
@@ -168,7 +168,7 @@ class CreativeBatchTests(unittest.TestCase):
             result = creative_batch.run_creative_batch("cats", "indie editorial", 3, final, execute=True, batch_runner=success_runner)
             self.assertEqual(sorted(path.name for path in final.iterdir()), ["001.png", "002.png", "003.png"])
             self.assertTrue(all(path.is_file() for path in final.iterdir()))
-            self.assertFalse(any(Path(tmp).glob(".final.imggen-work-*")))
+            self.assertFalse(any(Path(tmp).glob(".final.heituz-skill-work-*")))
             self.assertEqual(result["count"], 3)
 
     def test_failure_retains_workspace_for_resume(self):
@@ -178,7 +178,7 @@ class CreativeBatchTests(unittest.TestCase):
             final = Path(tmp) / "final"
             with self.assertRaisesRegex(creative_batch.CreativeBatchError, "workspace retained"):
                 creative_batch.run_creative_batch("cats", "", 2, final, execute=True, batch_runner=failed_runner)
-            workspaces = list(Path(tmp).glob(".final.imggen-work-*"))
+            workspaces = list(Path(tmp).glob(".final.heituz-skill-work-*"))
             self.assertEqual(len(workspaces), 1)
             self.assertTrue((workspaces[0] / "variations.jsonl").is_file())
             self.assertFalse(final.exists())

@@ -6,7 +6,7 @@ import { fileURLToPath } from "node:url";
 import { spawnSync } from "node:child_process";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-const target = path.join(os.tmpdir(), `ImgGen2-install-smoke-${process.pid}`);
+const target = path.join(os.tmpdir(), `HeiTuz-install-smoke-${process.pid}`);
 try {
   const result = spawnSync(process.execPath, [
     path.join(root, "scripts", "install.mjs"),

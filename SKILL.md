@@ -1,5 +1,5 @@
 ---
-name: ImgGen2
+name: HeiTuz
 description: "Generate or edit image files; not for writing prompts alone. Use the Codex subscription route or an explicitly named provider for single images and exact-N batches."
 version: 2.0.1
 author: HeiTuz
@@ -11,7 +11,7 @@ metadata:
     category: creative
 ---
 
-# ImgGen2
+# HeiTuz
 
 Generate, inspect, and deliver the requested images. Codex remains the default image route; provider-specific requests follow the workflow table below. Complete the authorized workflow through generation, required QC, targeted recovery, and actual file delivery. A plan, dry-run, task specification, process ID, or successful transport alone is not a completed image request.
 

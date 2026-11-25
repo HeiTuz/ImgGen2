@@ -1,5 +1,5 @@
 ---
-name: ImgGen2
+name: HeiTuz
 description: "Generate or edit image files; not for writing prompts alone. Use the Codex subscription route or an explicitly named provider for single images and exact-N batches. GPT/Codex host surface: the host and the generation transport coincide."
 version: 2.0.1
 author: HeiTuz
@@ -7,14 +7,14 @@ license: MIT
 platforms: [linux, macos, windows]
 metadata:
   host_surface: codex
-  canonical_source: "HeiTuz/ImgGen2 SKILL.md v2.0.1"
+  canonical_source: "HeiTuz/heituz-skill SKILL.md v2.0.1"
   tags: [image-generation, image-editing, chatgpt]
   category: creative
 ---
 
-# ImgGen2 (GPT/Codex surface)
+# HeiTuz (GPT/Codex surface)
 
-> **Host integration — GPT/Codex.** This file is the entry surface for Codex installs (`~/.codex/skills/ImgGen2`). The rules below are identical to the canonical SKILL.md; only the host-integration surface (frontmatter, invocation notes, tool naming) is migrated.
+> **Host integration — GPT/Codex.** This file is the entry surface for Codex installs (`~/.codex/skills/HeiTuz`). The rules below are identical to the canonical SKILL.md; only the host-integration surface (frontmatter, invocation notes, tool naming) is migrated.
 > - **Invocation**: Codex discovers this skill from its skills directory. `scripts/*.py` commands run through the Codex shell. The generation backend is the same official Codex CLI subscription transport the canonical skill defines — host and transport coincide here, which changes nothing about the dry-run-first contract.
 > - **Vision QC tool**: the "host's default Vision tool" on this host is Codex's native image input — attach the artifact to a review turn and apply the QC rubric linked from the execution reference. No separate reviewer model is pinned.
 > - **Grok route**: explicit Grok requests use `scripts/grok_cli_transport.py` with the official Grok CLI native `image_gen` / `image_edit` tools. Require an existing working CLI login. Read the routing contract; never substitute another provider or extract credentials.

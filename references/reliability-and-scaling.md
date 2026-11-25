@@ -6,7 +6,7 @@ The Codex single-image transport now fingerprints reference bytes and file ident
 
 ## Batch runner design decisions
 
-| Area | ImgGen2 behavior and reason |
+| Area | HeiTuz behavior and reason |
 | --- | --- |
 | Workers and concurrency | Each image runs in its own CLI invocation, and concurrency grows through a success-driven ramp. An explicit hard cap and a conservative resource fallback bound the pool, and a bounded future window limits outstanding work. |
 | Shared-lane failures and child isolation | A bare 429 is classified as a rate limit. Child processes run with `stdin=DEVNULL`, and the generation instruction tells the worker to end after generation without shell work or moving artifacts. Regression tests cover these. |
@@ -14,13 +14,13 @@ The Codex single-image transport now fingerprints reference bytes and file ident
 | Resume | The ledger owns outputs, records hashes, gates on pilot QC, and retries only failed or pending jobs. Existing files alone do not prove a successful prior job. |
 | Aspect ratio and size | Per-record ratio and size are compiler metadata; the constraints must be present in the compiled prompt. Dedicated native size options are not added or claimed. The portable handoff checks requested dimensions after transport. |
 
-Fixed model-size lists, fixed account rates and latency estimates are not treated as current capability evidence. The three ImgGen2 skill surfaces make no fixed-size or nearest-ratio assertion; they follow the actual helper and its dimension-verification contract. Global process-kill recipes and unrestricted sandbox flags are not part of runtime behavior.
+Fixed model-size lists, fixed account rates and latency estimates are not treated as current capability evidence. The three HeiTuz skill surfaces make no fixed-size or nearest-ratio assertion; they follow the actual helper and its dimension-verification contract. Global process-kill recipes and unrestricted sandbox flags are not part of runtime behavior.
 
 ## GitHub sources and decisions
 
 Reviewed on 2026-09-08. These are implementation references, not additional generation providers or dependencies.
 
-| Primary source | Observed pattern | ImgGen2 decision |
+| Primary source | Observed pattern | HeiTuz decision |
 | --- | --- | --- |
 | [OpenAI imagegen sample](https://github.com/openai/codex/blob/4b0f44d3046f5212e618d0b5fb5225a2f1988989/codex-rs/skills/src/assets/samples/imagegen/scripts/image_gen.py#L600-L725) | Dry-run precedes client creation; semaphore limits concurrent image calls; per-job failure and fail-fast paths are distinct. | Keep planning isolated from live state and distinguish shared-lane failures from per-cut failures. Do not import the sample's API-key route or size controls into the subscription transport. |
 | [CPython bounded queue](https://github.com/python/cpython/blob/23180c50082fe98784c78511b335d7274ed87fb7/Lib/asyncio/queues.py#L125-L154) | A full bounded queue holds back producers rather than admitting all work. | Keep at most the worker target in outstanding futures and replenish as calls finish, using the existing synchronous executor. |

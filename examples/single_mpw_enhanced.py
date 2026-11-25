@@ -7,7 +7,7 @@ import sys
 if __name__ == "__main__":
     scripts = Path(__file__).resolve().parent.parent / "scripts"
     sys.path.insert(0, str(scripts))
-    spec = importlib.util.spec_from_file_location("imggen_single_transport_example", scripts / "codex_subscription_transport.py")
+    spec = importlib.util.spec_from_file_location("heituz_skill_single_transport_example", scripts / "codex_subscription_transport.py")
     if spec is None or spec.loader is None:
         raise RuntimeError("Cannot load the packaged single-image transport.")
     module = importlib.util.module_from_spec(spec)
