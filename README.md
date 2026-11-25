@@ -14,6 +14,8 @@ HeiTuz는 Codex 구독 경로로 이미지를 만들고, 레퍼런스가 필요�
 
 MPW는 프롬프트를 만드는 별도 플러그인 `mpw@heituz`입니다. 2.0.0부터 HeiTuz 설치기는 HeiTuz만 설치합니다. MPW는 [HeiTuz 마켓플레이스](https://github.com/HeiTuz/heituz-plugins)에서 설치하세요.
 
+> **이전 이름(ImgGen2)으로 설치했다면** 옛 `imggen update`는 더 이상 동작하지 않습니다. 아래 설치 명령으로 다시 설치하세요. 정리 방법은 [업데이트](#업데이트) 끝에 있습니다.
+
 ## 설치
 
 ### 명령은 하나
@@ -179,7 +181,7 @@ bunx --package github:HeiTuz/heituz-skill heituz-skill -- --component heituz --f
 
 `--codex`를 추가하면 공식 Codex CLI도 갱신합니다. 1.x에서 Hermes에 등록한 설치는 갱신하지 않고 `--agent codex` 또는 `--agent claude`로 다시 설치하라고 안내합니다.
 
-**이전 이름(ImgGen2)으로 설치했다면** 자동으로 옮겨 주지 않으니 새로 설치하세요. 설치가 끝나면 옛 설치 폴더(`~/.claude/skills/ImgGen2`, `~/.codex/skills/ImgGen2`), 옛 런처(`~/.local/bin/imggen`), 옛 설정 폴더(`~/.config/imggen`)를 지우면 됩니다. Windows는 `%APPDATA%\ImgGen2`와 `%LOCALAPPDATA%\ImgGen2`입니다. 옛 `imggen update`는 이전 저장소 주소로 이어지니 새 설치기로 바꿔야 합니다.
+**이전 이름(ImgGen2)으로 설치했다면** 자동으로 옮겨 주지 않으니 새로 설치하세요. 설치가 끝나면 옛 설치 폴더(`~/.claude/skills/ImgGen2`, `~/.codex/skills/ImgGen2`), 옛 런처(`~/.local/bin/imggen`), 옛 설정 폴더(`~/.config/imggen`)를 지우면 됩니다. Windows는 `%APPDATA%\ImgGen2` 안의 `installation.json`과 `imggen.mjs`, 그리고 `%LOCALAPPDATA%\ImgGen2\bin`만 지웁니다. `%APPDATA%\ImgGen2` 폴더 자체는 이전 이름의 ImgGen2 데스크톱 앱도 설정과 로그인 세션을 두던 곳이니 지우지 마세요. 옛 `imggen update`는 더 이상 동작하지 않으니 위 설치 명령으로 다시 설치해야 합니다.
 
 <details>
 <summary><strong>설치 문제 해결 · 오프라인 · Windows</strong></summary>
